@@ -1,0 +1,251 @@
+# =============================================================================
+# Protocolo red multisalto 802.11 — .gitignore
+# Android, prototipos (pct/), laboratorio y herramientas
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Android / Gradle
+# -----------------------------------------------------------------------------
+*.iml
+.gradle/
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+debug/
+intermediates/
+generated/
+obj/
+*.hprof
+
+# Gradle wrapper jar se versiona; cachés locales no
+.gradle-home/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.ipr
+*.iws
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor/
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetDropDown.xml
+.idea/render.experimental.xml
+.idea/gradle.xml
+.idea/compiler.xml
+.idea/misc.xml
+.idea/vcs.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries/
+.idea/shelf/
+*.swp
+*.swo
+
+# Kotlin
+.kotlin/
+*.kotlin_module
+*.kt.swp
+
+# NDK / CMake
+.externalNativeBuild/
+.cxx/
+*.o
+*.so
+!**/jniLibs/**/*.so
+
+# Local SDK paths (nunca versionar)
+local.properties
+**/local.properties
+
+# Firmas y secretos
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+secrets.properties
+**/secrets.properties
+google-services.json
+**/google-services.json
+.env
+.env.*
+!.env.example
+
+# -----------------------------------------------------------------------------
+# Carpeta de implementación / prototipos (pct/)
+# -----------------------------------------------------------------------------
+pct/**/build/
+pct/**/.gradle/
+pct/**/out/
+pct/**/bin/
+pct/**/dist/
+pct/**/node_modules/
+pct/**/.venv/
+pct/**/venv/
+pct/**/__pycache__/
+pct/**/*.pyc
+pct/**/.pytest_cache/
+pct/**/.mypy_cache/
+pct/**/.ruff_cache/
+pct/**/target/
+pct/**/Cargo.lock
+pct/**/vendor/
+
+# APKs y bundles generados en prototipos
+pct/**/*.apk
+pct/**/*.aab
+pct/**/*.ipa
+
+# Capturas de laboratorio (Wireshark, logs masivos)
+pct/**/*.pcap
+pct/**/*.pcapng
+pct/**/*.cap
+pct/**/captures/
+pct/**/dumps/
+pct/**/logs/
+pct/**/*.log
+!pct/**/README.md
+
+# Resultados empíricos crudos (exportar resúmenes a docs/)
+pct/**/results/raw/
+pct/**/data/raw/
+pct/**/*.csv
+!pct/**/fixtures/**/*.csv
+
+# Artefactos de prueba temporal
+pct/**/tmp/
+pct/**/temp/
+pct/**/.cache/
+pct/**/scratch/
+
+# -----------------------------------------------------------------------------
+# Python (scripts de laboratorio, parsers PCT1, automatización)
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.eggs/
+dist/
+*.whl
+
+# -----------------------------------------------------------------------------
+# Node / herramientas web auxiliares
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
+.yarn/
+
+# -----------------------------------------------------------------------------
+# LaTeX / monografía (artefactos de compilación)
+# -----------------------------------------------------------------------------
+docs/**/*.aux
+docs/**/*.bbl
+docs/**/*.blg
+docs/**/*.fdb_latexmk
+docs/**/*.fls
+docs/**/*.lof
+docs/**/*.log
+docs/**/*.lot
+docs/**/*.out
+docs/**/*.synctex.gz
+docs/**/*.toc
+docs/**/*.nav
+docs/**/*.snm
+docs/**/*.vrb
+docs/**/*.bcf
+docs/**/*.run.xml
+docs/**/_minted*/
+docs/**/*.dvi
+docs/**/*.ps
+
+# PDFs compilados locales (mantener anteproyecto versionado si ya está en git)
+# Descomenta la siguiente línea si solo quieres fuentes .tex/.md en el repo:
+# docs/**/*.pdf
+
+# -----------------------------------------------------------------------------
+# macOS / Windows / Linux (escritorio)
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~
+.directory
+.Trash-*
+
+# -----------------------------------------------------------------------------
+# Editores
+# -----------------------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.code-workspace
+.cursor/
+!.cursor/rules/
+!.cursor/skills/
+
+# -----------------------------------------------------------------------------
+# Misceláneo pesado o local
+# -----------------------------------------------------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.iso
+*.dmg
+*.msi
+*.deb
+*.rpm
+
+# Backups
+*.bak
+*.backup
+*.old
+*.orig
+
+# Coverage / informes generados
+coverage/
+*.lcov
+.nyc_output/
+htmlcov/
+jacoco.exec
+**/jacoco/
+
+# Fastlane (si se usa para APK)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
