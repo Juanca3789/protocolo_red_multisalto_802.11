@@ -27,6 +27,8 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 | Matriz de validación experimental | [11-validation-matrix.md](11-validation-matrix.md) |
 | Constantes teóricas pre-laboratorio | [12-theoretical-constants.md](12-theoretical-constants.md) |
 
+**Implementación Android:** convención de nombres en [../development/android-app-naming.md](../development/android-app-naming.md).
+
 ---
 
 ## Decisiones de diseño consolidadas
