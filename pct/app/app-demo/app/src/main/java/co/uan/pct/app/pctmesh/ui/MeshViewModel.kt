@@ -68,10 +68,17 @@ class MeshViewModel(
                         _uiState.update { it.copy(lastError = event.message) }
                     }
                     is PctEvent.PhaseChanged -> appendLog("FASE → ${event.phase}")
-                    is PctEvent.TopologyChanged -> appendLog(
-                        "topo self=${event.snapshot.self.role} " +
-                            "peers=${event.snapshot.knownPeers.size}",
-                    )
+                    is PctEvent.TopologyChanged -> {
+                        appendLog(
+                            "topo self=${event.snapshot.self.role} " +
+                                "hijos=${event.snapshot.children.size} " +
+                                "dnsPeers=${event.snapshot.knownPeers.size}",
+                        )
+                        val role = event.snapshot.self.role
+                        if (role == "BRIDGE" || role == "ROOT") {
+                            _uiState.update { it.copy(lastError = null) }
+                        }
+                    }
                 }
             }
         }
@@ -88,7 +95,7 @@ class MeshViewModel(
     private fun appendLog(message: String) {
         val stamp = timeFmt.format(Date())
         _uiState.update { state ->
-            state.copy(logs = (state.logs + "$stamp  $message").takeLast(200))
+            state.copy(logs = (state.logs + "$stamp  $message").takeLast(40))
         }
     }
 

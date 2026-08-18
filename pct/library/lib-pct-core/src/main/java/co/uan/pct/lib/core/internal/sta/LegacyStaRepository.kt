@@ -22,7 +22,11 @@ class LegacyStaRepository(
     private val _staState = MutableStateFlow<StaState>(StaState.Idle)
     val staState: StateFlow<StaState> = _staState.asStateFlow()
 
-    private var activeNetwork: Network? = null
+    /** Red STA al SoftAP del padre (para HELLO / bindSocket). */
+    @Volatile
+    var activeNetwork: Network? = null
+        private set
+
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -44,7 +48,8 @@ class LegacyStaRepository(
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 activeNetwork = network
-                connectivityManager.bindProcessToNetwork(network)
+                // No bindProcessToNetwork: el SoftAP GO propio debe poder recibir HELLO UDP.
+                // El HELLO usa network.bindSocket() explícitamente.
                 _staState.value = StaState.Connected(record.goSsid)
             }
 

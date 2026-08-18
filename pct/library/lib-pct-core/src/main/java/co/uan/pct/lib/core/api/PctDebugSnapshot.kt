@@ -10,6 +10,8 @@ data class PctDebugSnapshot(
     val goStatus: String = "idle",
     val goSsid: String? = null,
     val goIsOwner: Boolean? = null,
+    /** Clientes STA asociados al SoftAP/GO (hijos físicos). */
+    val goClientCount: Int = 0,
     val staStatus: String = "idle",
     val staSsid: String? = null,
     val dnsDiscovering: Boolean = false,

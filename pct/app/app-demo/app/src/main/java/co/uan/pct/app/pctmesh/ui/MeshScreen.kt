@@ -2,23 +2,24 @@ package co.uan.pct.app.pctmesh.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.uan.pct.lib.core.api.NodePhase
 import co.uan.pct.lib.core.api.TopologySnapshot
 import com.uan.designsystem.uikit.components.UanAppBar
+import com.uan.designsystem.uikit.components.UanDivider
+import com.uan.designsystem.uikit.components.UanLists
 import com.uan.designsystem.uikit.theme.UanThemeTokens
 
 @Composable
@@ -28,101 +29,107 @@ fun MeshScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tokens = UanThemeTokens.current
+    val space = tokens.spacing
     val debug = state.debug
     val topo = state.topology
+    var logExpanded by rememberSaveable { mutableStateOf(false) }
+    val showCandidates = state.phase == NodePhase.SCANNING ||
+        state.phase == NodePhase.JOINING ||
+        debug.candidates.isNotEmpty()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = space.md, vertical = space.xs)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(space.xs),
     ) {
         UanAppBar(title = "PCT Mesh · debug")
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Text(
+            text = "${state.nodeId.take(8).ifEmpty { "…" }}… · ${state.phase.name}",
+            style = tokens.typography.section,
+            color = tokens.colors.primary,
+        )
+        Text(
+            text = debug.action,
+            style = tokens.typography.body,
+            color = tokens.colors.onSurface,
+        )
+        state.lastError?.let { err ->
             Text(
-                text = "nid ${state.nodeId.ifBlank { "…" }}",
-                style = tokens.typography.small,
-                color = tokens.colors.onSurface,
-            )
-            Text(
-                text = "FASE ${state.phase.name}",
-                style = tokens.typography.section,
-                color = tokens.colors.primary,
-            )
-            Text(
-                text = phaseGuide(state.phase),
+                text = err,
                 style = tokens.typography.body,
-                color = tokens.colors.onSurface,
+                color = tokens.colors.error,
             )
-            Text(
-                text = "Ahora: ${debug.action}",
-                style = tokens.typography.subtitle,
-                color = tokens.colors.primary,
-            )
+        }
 
-            state.lastError?.let { err ->
-                Text(
-                    text = "ERROR: $err",
-                    style = tokens.typography.body,
-                    color = tokens.colors.error,
-                )
-            }
+        SectionDivider()
+        SectionTitle("Topología")
+        TopologyBlock(topo)
 
-            HorizontalDivider()
-            SectionTitle("Subistemas")
-            MonoLine("GO   ${debug.goStatus}" + (debug.goSsid?.let { " · $it" } ?: ""))
-            MonoLine("STA  ${debug.staStatus}" + (debug.staSsid?.let { " · $it" } ?: ""))
-            MonoLine(
-                "DNS  disc=${debug.dnsDiscovering} adv=${debug.dnsAdvertising} " +
-                    "fase=${debug.dnsPhase}",
-            )
-            MonoLine(
-                "DNS  peers=${debug.peerCount} srv=${debug.servicesSeen} " +
-                    "pct=${debug.pctCtrlSeen} txt=${debug.txtCallbacks} " +
-                    "ticks=${debug.discoveryTicks}",
-            )
-            if (debug.hint.isNotBlank()) {
-                MonoLine("hint ${debug.hint}")
-            }
+        SectionDivider()
+        SectionTitle("Subistemas")
+        MonoLine("GO  ${debug.goStatus} · clients=${debug.goClientCount}")
+        debug.goSsid?.let { MonoLine("    $it") }
+        MonoLine("STA ${debug.staStatus}" + (debug.staSsid?.let { " · $it" } ?: ""))
+        MonoLine(
+            "DNS disc=${debug.dnsDiscovering} adv=${debug.dnsAdvertising} " +
+                "peers=${debug.peerCount} pct=${debug.pctCtrlSeen}",
+        )
+        if (debug.hint.isNotBlank()) {
+            MonoLine(debug.hint)
+        }
 
-            HorizontalDivider()
-            SectionTitle("Topología")
-            TopologyBlock(topo)
-
-            HorizontalDivider()
-            SectionTitle("Candidatos padres (${debug.candidates.size})")
+        if (showCandidates) {
+            SectionDivider()
+            SectionTitle("Candidatos (${debug.candidates.size})")
             if (debug.candidates.isEmpty()) {
-                MonoLine("(ninguno — en SCANNING espera settle, o no hay GO anunciando)")
+                MonoLine("(ninguno)")
             } else {
                 debug.candidates.forEachIndexed { i, c ->
-                    MonoLine(
-                        "[$i] ${c.deviceName} nid=${c.nodeId.take(8)}… " +
-                            "${c.role} hop=${c.hop}",
-                    )
-                    MonoLine("    GO ${c.goSsid}")
-                    MonoLine("    ${c.deviceAddress}")
+                    MonoLine("[$i] ${c.deviceName} · ${c.role} hop=${c.hop}")
+                    MonoLine("    ${c.goSsid}")
                 }
             }
+        }
 
-            HorizontalDivider()
-            SectionTitle("Log (${state.logs.size}) — más reciente arriba")
-            state.logs.asReversed().forEach { line ->
+        SectionDivider()
+        UanLists(
+            title = "Log (${state.logs.size}/40)",
+            supportingText = if (logExpanded) "Ocultar" else "Mostrar",
+            onClick = { logExpanded = !logExpanded },
+            trailingContent = {
                 Text(
-                    text = line,
-                    style = tokens.typography.small,
-                    color = tokens.colors.onSurface,
-                    modifier = Modifier.padding(vertical = 1.dp),
+                    text = if (logExpanded) "▾" else "▸",
+                    style = tokens.typography.subtitle,
+                    color = tokens.colors.muted,
                 )
+            },
+        )
+        if (logExpanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(space.xxxs),
+            ) {
+                state.logs.asReversed().forEach { line ->
+                    Text(
+                        text = line,
+                        style = tokens.typography.small,
+                        color = tokens.colors.onSurface,
+                    )
+                }
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun SectionDivider() {
+    val space = UanThemeTokens.current.spacing
+    UanDivider(
+        modifier = Modifier.padding(vertical = space.md),
+    )
 }
 
 @Composable
@@ -143,26 +150,15 @@ private fun TopologyBlock(topo: TopologySnapshot?) {
         MonoLine("(sin snapshot)")
         return
     }
-    MonoLine("self  ${topo.self.role} hop=${topo.self.hop} go=${topo.self.goSsid ?: "—"}")
+    MonoLine("self  ${topo.self.role} hop=${topo.self.hop}")
+    topo.self.goSsid?.let { MonoLine("      $it") }
     MonoLine(
         "padre " + (
-            topo.parent?.let {
-                "${it.nodeId.take(8)}… ${it.role} hop=${it.hop} ${it.goSsid ?: ""}"
-            } ?: "ninguno"
+            topo.parent?.let { "${it.nodeId.take(8)}… ${it.role}" } ?: "ninguno"
             ),
     )
-    MonoLine("hijos ${topo.children.size} · peers conocidos ${topo.knownPeers.size}")
-}
-
-private fun phaseGuide(phase: NodePhase): String = when (phase) {
-    NodePhase.ISLAND ->
-        "Isla: sin mesh. Tras permisos corre bootstrap, o quedó idle/cerrado."
-    NodePhase.SCANNING ->
-        "Escaneo: GO apagado, busca peers/servicios _pct-ctrl. Mira peers/pct/candidatos."
-    NodePhase.JOINING ->
-        "Unión: eligió padre y pide STA (diálogo Wi‑Fi). Luego crea GO bridge."
-    NodePhase.MEMBER ->
-        "Miembro: STA al padre + GO propio anunciando. Otros pueden unirse a este GO."
-    NodePhase.ROOT ->
-        "Raíz: sin padre. GO + anuncio. Si no había candidatos, caíste aquí."
+    MonoLine("hijos ${topo.children.size}")
+    topo.children.forEachIndexed { i, child ->
+        MonoLine("  [$i] ${child.nodeId.take(12)}…")
+    }
 }
