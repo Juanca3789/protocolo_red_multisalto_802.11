@@ -18,5 +18,8 @@ class PctCoreTest {
         val config = PctConfig()
         assertEquals(5_000L, config.scanSettleMs)
         assertTrue(config.autoActivateGoAfterSta)
+        assertEquals(8765, config.ctrlPort)
+        assertEquals(8766, config.dataPort)
+        assertEquals(5_000L, config.pingIntervalMs)
     }
 }

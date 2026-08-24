@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.uan.pct.lib.core.api.NodePhase
 import co.uan.pct.lib.core.api.TopologySnapshot
-import com.uan.designsystem.uikit.components.UanAppBar
 import com.uan.designsystem.uikit.components.UanDivider
 import com.uan.designsystem.uikit.components.UanLists
 import com.uan.designsystem.uikit.theme.UanThemeTokens
@@ -44,8 +43,6 @@ fun MeshScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(space.xs),
     ) {
-        UanAppBar(title = "PCT Mesh · debug")
-
         Text(
             text = "${state.nodeId.take(8).ifEmpty { "…" }}… · ${state.phase.name}",
             style = tokens.typography.section,
@@ -79,6 +76,37 @@ fun MeshScreen(
         )
         if (debug.hint.isNotBlank()) {
             MonoLine(debug.hint)
+        }
+
+        MonoLine(
+            "L2 ctrl=${debug.ctrlLinksOpen} data=${debug.dataLinksOpen} " +
+                "recon=${debug.dataLinksReconnecting}",
+        )
+
+        SectionDivider()
+        SectionTitle("Vecinos L2 (${state.neighbors.neighbors.size})")
+        if (state.neighbors.neighbors.isEmpty()) {
+            MonoLine("(ninguno)")
+        } else {
+            state.neighbors.neighbors.forEach { n ->
+                MonoLine(
+                    "${n.neighborNid.take(8)}… ${n.iface.name} ${n.role} " +
+                        "data=${n.dataChannelState.name} ip=${n.localIp}",
+                )
+            }
+        }
+
+        SectionDivider()
+        SectionTitle("Rutas L3 (${state.routes.entries.size})")
+        if (state.routes.entries.isEmpty()) {
+            MonoLine("(ninguna)")
+        } else {
+            state.routes.entries.forEach { r ->
+                MonoLine(
+                    "${r.destinationUuid.take(8)}… → ${r.nextHopUuid.take(8)}… " +
+                        "hop=${r.hopCount} ip=${r.nextHopLocalIp ?: "—"}",
+                )
+            }
         }
 
         if (showCandidates) {

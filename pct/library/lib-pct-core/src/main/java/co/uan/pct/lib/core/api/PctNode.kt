@@ -17,6 +17,8 @@ interface PctNode {
     /** GO / STA / DNS-SD / candidatos (laboratorio). */
     val debug: StateFlow<PctDebugSnapshot>
     val events: SharedFlow<PctEvent>
+    val neighbors: StateFlow<NeighborSnapshot>
+    val routes: StateFlow<RouteSnapshot>
 
     fun init(context: Context, config: PctConfig = PctConfig())
 
@@ -24,4 +26,7 @@ interface PctNode {
     fun start()
 
     fun close()
+
+    /** Envía payload usuario multisalto (canal datos L3). */
+    fun sendUser(destinationNid: String, payload: ByteArray)
 }

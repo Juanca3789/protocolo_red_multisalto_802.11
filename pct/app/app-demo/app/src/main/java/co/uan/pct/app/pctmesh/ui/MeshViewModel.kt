@@ -8,6 +8,8 @@ import co.uan.pct.lib.core.api.NodePhase
 import co.uan.pct.lib.core.api.PctDebugSnapshot
 import co.uan.pct.lib.core.api.PctEvent
 import co.uan.pct.lib.core.api.PctNode
+import co.uan.pct.lib.core.api.NeighborSnapshot
+import co.uan.pct.lib.core.api.RouteSnapshot
 import co.uan.pct.lib.core.api.TopologySnapshot
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,6 +25,8 @@ data class MeshUiState(
     val phase: NodePhase = NodePhase.ISLAND,
     val topology: TopologySnapshot? = null,
     val debug: PctDebugSnapshot = PctDebugSnapshot(),
+    val neighbors: NeighborSnapshot = NeighborSnapshot(),
+    val routes: RouteSnapshot = RouteSnapshot(),
     val logs: List<String> = emptyList(),
     val lastError: String? = null,
     val started: Boolean = false,
@@ -60,6 +64,16 @@ class MeshViewModel(
             }
         }
         viewModelScope.launch {
+            pctNode.neighbors.collect { neighbors ->
+                _uiState.update { it.copy(neighbors = neighbors) }
+            }
+        }
+        viewModelScope.launch {
+            pctNode.routes.collect { routes ->
+                _uiState.update { it.copy(routes = routes) }
+            }
+        }
+        viewModelScope.launch {
             pctNode.events.collect { event ->
                 when (event) {
                     is PctEvent.Log -> appendLog(event.message)
@@ -79,6 +93,9 @@ class MeshViewModel(
                             _uiState.update { it.copy(lastError = null) }
                         }
                     }
+                    is PctEvent.UserMessage -> appendLog(
+                        "UserMessage from ${event.fromNid.take(8)}…: ${event.text}",
+                    )
                 }
             }
         }

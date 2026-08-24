@@ -3,19 +3,22 @@ package co.uan.pct.lib.core.internal
 import android.app.Application
 import android.content.Context
 import co.uan.pct.lib.core.api.NodePhase
+import co.uan.pct.lib.core.api.NeighborSnapshot
 import co.uan.pct.lib.core.api.PctConfig
 import co.uan.pct.lib.core.api.PctDebugCandidate
 import co.uan.pct.lib.core.api.PctDebugSnapshot
 import co.uan.pct.lib.core.api.PctEvent
 import co.uan.pct.lib.core.api.PctNode
+import co.uan.pct.lib.core.api.RouteSnapshot
 import co.uan.pct.lib.core.api.TopologyNode
 import co.uan.pct.lib.core.api.TopologySnapshot
-import co.uan.pct.lib.core.internal.ctrl.HelloHub
-import co.uan.pct.lib.core.internal.ctrl.HelloPayload
+import co.uan.pct.lib.core.internal.link.LinkOrchestrator
+import co.uan.pct.lib.core.internal.link.NeighborRegistry
 import co.uan.pct.lib.core.internal.p2p.DnsSdRepository
 import co.uan.pct.lib.core.internal.p2p.GoRepository
 import co.uan.pct.lib.core.internal.p2p.P2pChannelHolder
 import co.uan.pct.lib.core.internal.p2p.model.GoState
+import co.uan.pct.lib.core.internal.route.RouteOrchestrator
 import co.uan.pct.lib.core.internal.sta.LegacyStaRepository
 import co.uan.pct.lib.core.internal.sta.StaState
 import co.uan.pct.lib.core.internal.util.ParentSelector
@@ -46,7 +49,9 @@ internal class PctNodeImpl : PctNode {
     private var go: GoRepository? = null
     private var dns: DnsSdRepository? = null
     private var sta: LegacyStaRepository? = null
-    private var helloHub: HelloHub? = null
+    private var registry: NeighborRegistry? = null
+    private var routeOrch: RouteOrchestrator? = null
+    private var link: LinkOrchestrator? = null
 
     private var started = AtomicBoolean(false)
     private var closed = AtomicBoolean(false)
@@ -54,10 +59,6 @@ internal class PctNodeImpl : PctNode {
 
     private var role: String = "ISLAND"
     private var parentNode: TopologyNode? = null
-    /** Clientes SoftAP (MAC) — provisional hasta HELLO. */
-    private var macChildNodes: List<TopologyNode> = emptyList()
-    /** Hijos con UUID PCT real vía HELLO UDP. */
-    private val helloChildNodes = LinkedHashMap<String, TopologyNode>()
     private var bootstrapJob: Job? = null
     private var currentAction: String = "Sin iniciar"
 
@@ -81,6 +82,12 @@ internal class PctNodeImpl : PctNode {
     private val _events = MutableSharedFlow<PctEvent>(extraBufferCapacity = 128)
     override val events: SharedFlow<PctEvent> = _events.asSharedFlow()
 
+    private val _neighbors = MutableStateFlow(NeighborSnapshot())
+    override val neighbors: StateFlow<NeighborSnapshot> = _neighbors.asStateFlow()
+
+    private val _routes = MutableStateFlow(RouteSnapshot())
+    override val routes: StateFlow<RouteSnapshot> = _routes.asStateFlow()
+
     override fun init(context: Context, config: PctConfig) {
         if (initialized.getAndSet(true)) {
             emitLog("init() ignorado: ya inicializado")
@@ -100,14 +107,43 @@ internal class PctNodeImpl : PctNode {
         dns = DnsSdRepository(holder).also { it.setLocalNodeId(id) }
         sta = LegacyStaRepository(app)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        helloHub = HelloHub(scope!!, config.ctrlPort)
+
+        val reg = NeighborRegistry()
+        registry = reg
+        val routeOrchInstance = RouteOrchestrator(
+            selfNid = { nodeId },
+            selfRole = { role },
+            selfHop = { currentHop() },
+            registry = reg,
+            log = { emitLog(it) },
+            emitUserMessage = { from, text ->
+                _events.tryEmit(PctEvent.UserMessage(from, text))
+            },
+        )
+        routeOrch = routeOrchInstance
+        link = LinkOrchestrator(
+            parentScope = scope!!,
+            config = config,
+            registry = reg,
+            routes = routeOrchInstance,
+            selfNid = { nodeId },
+            selfRole = { role },
+            selfHop = { currentHop() },
+            parentNid = { parentNode?.nodeId },
+            log = { emitLog(it) },
+            onTopologyChanged = { publishTopology() },
+        )
 
         scope?.launch {
             dns?.events?.collect { msg -> emitLog("DNS-SD: $msg") }
         }
         scope?.launch { collectDebug() }
-        scope?.launch { collectGoClients() }
-        scope?.launch { collectHellos() }
+        scope?.launch {
+            routeOrchInstance.neighbors.collect { _neighbors.value = it }
+        }
+        scope?.launch {
+            routeOrchInstance.routes.collect { _routes.value = it }
+        }
 
         setAction("Inicializado; esperando start() (permisos)")
         publishTopology()
@@ -147,10 +183,12 @@ internal class PctNodeImpl : PctNode {
         bootstrapJob = null
         started.set(false)
 
-        emitLog("close(): deteniendo DNS/STA/GO/HELLO…")
+        emitLog("close(): deteniendo L2/L3/DNS/STA/GO…")
         setAction("Cerrando P2P…")
-        runCatching { helloHub?.close() }
-        helloHub = null
+        runCatching { link?.close() }
+        link = null
+        routeOrch = null
+        registry = null
         runCatching { dns?.stopDiscovery() }
         runCatching { dns?.stopAdvertising() }
         runCatching { dns?.close() }
@@ -169,56 +207,23 @@ internal class PctNodeImpl : PctNode {
         initialized.set(false)
         role = "ISLAND"
         parentNode = null
-        macChildNodes = emptyList()
-        helloChildNodes.clear()
+        _neighbors.value = NeighborSnapshot()
+        _routes.value = RouteSnapshot()
         _debug.value = PctDebugSnapshot(action = "Cerrado")
         setPhase(NodePhase.ISLAND)
     }
 
-    private suspend fun collectHellos() {
-        val hub = helloHub ?: return
-        hub.hellos.collect { hello ->
-            if (hello.nid == nodeId) return@collect
-            val node = TopologyNode(
-                nodeId = hello.nid,
-                role = hello.role.ifBlank { "CHILD" },
-                hop = hello.hop,
-                goSsid = null,
-            )
-            val prev = helloChildNodes[hello.nid]
-            helloChildNodes[hello.nid] = node
-            if (prev?.nodeId != node.nodeId || prev.role != node.role || prev.hop != node.hop) {
-                emitLog("HELLO hijo nid=${hello.nid.take(8)}… role=${hello.role} hop=${hello.hop}")
-                publishTopology()
-            }
+    override fun sendUser(destinationNid: String, payload: ByteArray) {
+        val r = routeOrch ?: return
+        scope?.launch {
+            r.sendUser(destinationNid, payload)
         }
     }
 
-    private suspend fun collectGoClients() {
-        val goRepo = go ?: return
-        var lastCount = -1
-        goRepo.clients.collect { clients ->
-            macChildNodes = clients.map { c ->
-                TopologyNode(
-                    nodeId = c.deviceAddress.replace(":", "").ifBlank { c.deviceName },
-                    role = "CHILD",
-                    hop = 0,
-                    goSsid = null,
-                )
-            }
-            if (clients.isEmpty() && helloChildNodes.isNotEmpty()) {
-                helloChildNodes.clear()
-                emitLog("GO sin clientes SoftAP; limpio hijos HELLO")
-            }
-            _debug.value = _debug.value.copy(goClientCount = clients.size)
-            if (clients.size != lastCount) {
-                lastCount = clients.size
-                emitLog(
-                    "GO SoftAP clients=${clients.size} HELLO hijos=${helloChildNodes.size}",
-                )
-            }
-            publishTopology()
-        }
+    private fun currentHop(): Int = when {
+        role == "ROOT" -> 0
+        parentNode != null -> parentNode!!.hop + 1
+        else -> 0
     }
 
     private suspend fun collectDebug() {
@@ -246,7 +251,16 @@ internal class PctNodeImpl : PctNode {
                 goClientCount = clients.size,
             )
         }.collect { snap ->
-            _debug.value = snap
+            val stats = link?.linkStats()
+            _debug.value = if (stats != null) {
+                snap.copy(
+                    ctrlLinksOpen = stats.first,
+                    dataLinksOpen = stats.second,
+                    dataLinksReconnecting = stats.third,
+                )
+            } else {
+                snap
+            }
         }
     }
 
@@ -354,12 +368,6 @@ internal class PctNodeImpl : PctNode {
                 "candidatos=${candidates.size} " +
                 "hint=${dnsRepo.diagnostics.value.hint.ifBlank { "—" }}",
         )
-        candidates.forEachIndexed { i, c ->
-            emitLog(
-                "  cand[$i] ${c.deviceName} nid=${c.record.nid.take(8)}… " +
-                    "role=${c.record.role} hop=${c.record.hop} ssid=${c.record.goSsid}",
-            )
-        }
 
         val best = ParentSelector.best(candidates, nodeId)
         publishTopology()
@@ -372,7 +380,6 @@ internal class PctNodeImpl : PctNode {
             )
             dnsRepo.selectParent(best.deviceAddress)
             dnsRepo.stopDiscovery()
-            emitLog("requestNetwork STA (diálogo sistema si aplica)")
             staRepo.connectIfSupported(best.record)
 
             val connected = withTimeoutOrNull(config.bootstrapTimeoutMs) {
@@ -388,7 +395,12 @@ internal class PctNodeImpl : PctNode {
                     )
                     publishTopology()
                     emitLog("STA OK ssid=${connected.ssid}")
-                    startHelloSender()
+                    link?.onStaConnected(
+                        parentNidValue = best.record.nid,
+                        parentRole = best.record.role,
+                        parentHop = best.record.hop,
+                        network = staRepo.activeNetwork,
+                    )
                     if (config.autoActivateGoAfterSta) {
                         activateAsMember()
                     } else {
@@ -418,7 +430,6 @@ internal class PctNodeImpl : PctNode {
         publishTopology()
         setAction("MEMBER: createGroup() BRIDGE (STA ya al padre) → anunciar")
 
-        // Si el GO ya quedó Ready (p. ej. tras un Error transitorio), no recrear
         when (val current = goRepo.goState.value) {
             is GoState.Ready -> {
                 emitLog("GO ya Ready; anuncio BRIDGE sin recreate")
@@ -441,7 +452,6 @@ internal class PctNodeImpl : PctNode {
                 publishTopology()
             }
             else -> {
-                // Último intento: refrescar por si el GO ya existía
                 goRepo.requestGroupInfo()
                 val late = withTimeoutOrNull(3_000L) {
                     goRepo.goState.first { it is GoState.Ready || it is GoState.Error }
@@ -487,7 +497,6 @@ internal class PctNodeImpl : PctNode {
         }
     }
 
-    /** Espera Ready o Error terminal de createGroup. */
     private suspend fun awaitGoReady(goRepo: GoRepository, label: String): GoState? {
         return withTimeoutOrNull(18_000L) {
             goRepo.goState.first { state ->
@@ -524,37 +533,16 @@ internal class PctNodeImpl : PctNode {
             role = role,
         )
         emitLog("Anuncio registrado role=$role ssid=${ready.ssid}")
-        helloHub?.startListening()
-        emitLog("HELLO listen :${config.ctrlPort}")
-        // BRIDGE: re-enviar HELLO con hop/role definitivos
-        if (role == "BRIDGE") {
-            startHelloSender()
-        }
+        link?.onGoReady()
         publishTopology()
         setPhase(if (role == "ROOT") NodePhase.ROOT else NodePhase.MEMBER)
         setAction(
             if (role == "ROOT") {
-                "ROOT operativo: GO + anuncio. Esperando hijos."
+                "ROOT operativo: GO + L2 accept. Esperando hijos."
             } else {
-                "MEMBER operativo: STA al padre + GO propio + anuncio."
+                "MEMBER operativo: STA + GO + L2 accept."
             },
         )
-    }
-
-    private fun startHelloSender() {
-        val hub = helloHub ?: return
-        val staRepo = sta ?: return
-        val hop = when {
-            parentNode != null -> parentNode!!.hop + 1
-            else -> 0
-        }
-        val payload = HelloPayload(
-            nid = nodeId,
-            role = if (role == "ISLAND") "CHILD" else role,
-            hop = hop,
-        )
-        hub.startSending(staRepo.activeNetwork, payload)
-        emitLog("HELLO send → padre nid=${nodeId.take(8)}… hop=$hop")
     }
 
     private fun publishTopology() {
@@ -566,18 +554,32 @@ internal class PctNodeImpl : PctNode {
                 goSsid = c.record.goSsid,
             )
         }
-        val hop = when {
-            role == "ROOT" -> 0
-            parentNode != null -> parentNode!!.hop + 1
-            else -> 0
-        }
+        val hop = currentHop()
         val goSsid = (go?.goState?.value as? GoState.Ready)?.ssid
-        // Preferir UUID PCT (HELLO); SoftAP MAC solo si aún no llegó HELLO
-        val children = if (helloChildNodes.isNotEmpty()) {
-            helloChildNodes.values.toList()
-        } else {
-            macChildNodes.map { it.copy(hop = hop + 1) }
+
+        val children = _neighbors.value.neighbors
+            .filter { it.iface == co.uan.pct.lib.core.api.NeighborIface.DOWNSTREAM }
+            .map { n ->
+                TopologyNode(
+                    nodeId = n.neighborNid,
+                    role = n.role,
+                    hop = n.hop,
+                    goSsid = null,
+                )
+            }
+
+        val upstream = _neighbors.value.neighbors
+            .firstOrNull { it.iface == co.uan.pct.lib.core.api.NeighborIface.UPSTREAM }
+        val parentFromL2 = upstream?.let {
+            TopologyNode(
+                nodeId = it.neighborNid,
+                role = it.role,
+                hop = it.hop,
+                goSsid = parentNode?.goSsid,
+            )
         }
+        val effectiveParent = parentFromL2 ?: parentNode
+
         val snapshot = TopologySnapshot(
             self = TopologyNode(
                 nodeId = nodeId.ifBlank { "pending" },
@@ -585,7 +587,7 @@ internal class PctNodeImpl : PctNode {
                 hop = hop,
                 goSsid = goSsid,
             ),
-            parent = parentNode,
+            parent = effectiveParent,
             children = children,
             knownPeers = peers,
         )

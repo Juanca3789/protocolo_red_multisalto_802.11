@@ -7,6 +7,10 @@ data class PctConfig(
     val bootstrapTimeoutMs: Long = 60_000L,
     /** Tras STA, crear GO local y anunciar como BRIDGE. */
     val autoActivateGoAfterSta: Boolean = true,
-    /** Puerto lógico de control (anuncio). */
+    /** Puerto TCP control L2. */
     val ctrlPort: Int = 8765,
+    /** Puerto TCP datos usuario L3. */
+    val dataPort: Int = 8766,
+    /** Intervalo PING keepalive canal control. */
+    val pingIntervalMs: Long = 5_000L,
 )

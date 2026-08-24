@@ -62,7 +62,7 @@ FUNCIÓN forward(msg DATA):
   SI entry.status != ACTIVE: DESCARTAR
   msg.hop_limit -= 1
   msg.path_trace.append(self.node_id)
-  ENVIAR msg por socket(entry.next_hop_nid)
+  ENVIAR msg por socket(entry.next_hop_nid).data   // canal :8766, solo DATA
 ```
 
 ---
@@ -82,16 +82,19 @@ FUNCIÓN forward(msg DATA):
 ## 7. Pseudo-NAT / mapa de vecinos
 
 ```
-NeighborSocket {
+NeighborSockets {
   neighbor_nid:   UUID (16 B)
-  socket_id:    int
+  ctrl_socket:  handle   // :8765
+  data_socket:  handle?  // :8766, nullable si RECONNECTING
+  data_channel_state: CLOSED | OPEN | RECONNECTING
   iface_class:  UPSTREAM | DOWNSTREAM
   local_ip:     uint32 (opcional, debug)
-  last_ping_ms: uint64
+  last_ctrl_ms: uint64
+  last_data_ms: uint64
 }
 ```
 
-Enrutamiento **nunca** usa `local_ip` del destino final; solo selecciona socket del `next_hop_nid`.
+Enrutamiento **nunca** usa `local_ip` del destino final. Control (TOPO, PING) usa `ctrl_socket`; ForwardWorker user usa `data_socket`.
 
 ---
 

@@ -24,6 +24,12 @@ data class PctDebugSnapshot(
     val discoveryTicks: Int = 0,
     val hint: String = "",
     val candidates: List<PctDebugCandidate> = emptyList(),
+    /** Enlaces L2 control activos. */
+    val ctrlLinksOpen: Int = 0,
+    /** Enlaces L2 datos OPEN. */
+    val dataLinksOpen: Int = 0,
+    /** Enlaces L2 datos en reconexión. */
+    val dataLinksReconnecting: Int = 0,
 )
 
 data class PctDebugCandidate(

@@ -12,8 +12,9 @@ Valores **meramente teóricos** para diseño y primera implementación Android. 
 |---|---|---|
 | `PCT_PROTOCOL_VERSION` | 1 | uint8 |
 | `PCT_MAGIC` | `PCT1` (0x50435431) | char[4] |
-| `PCT_CTRL_PORT_DEFAULT` | 8765 | uint16 |
-| `PCT_CTRL_PORT_ALT` | 8766 | uint16 (fallback) |
+| `PCT_CTRL_PORT_DEFAULT` | 8765 | uint16 | Canal control L2/L3 |
+| `PCT_DATA_PORT_DEFAULT` | 8766 | uint16 | Canal datos user / ForwardWorker |
+| `PCT_CTRL_PORT_ALT` | 8775 | uint16 | Fallback control (lab) |
 | `NODE_ID_SIZE` | 16 | bytes (UUID) |
 | `NID_SHORT_HEX_LEN` | 8 | chars |
 
@@ -35,7 +36,9 @@ Valores **meramente teóricos** para diseño y primera implementación Android. 
 | `T_SERVICE_SWITCH_MS` | 2000 | Cambio seek→ctrl |
 | `T_RECONFIG_TARGET_MS` | 15000 | Objetivo reconexión (anteproyecto) |
 | `T_TCP_CONNECT_MS` | 5000 | Timeout connect TCP |
-| `T_HELLO_RETRY_MS` | 2000 | Reintento HELLO |
+| `T_DATA_CHANNEL_REOPEN_MS` | 3000 | Timeout reopen `:8766` tras RESET |
+| `T_DATA_SEND_QUEUE_MAX` | 64 | Frames user en cola (descartable) |
+| `T_CTRL_SEND_QUEUE_MAX` | 32 | Frames control (no descartar PING) |
 | `T_JOIN_BACKOFF_MS` | 3000 | Backoff JOIN fallido |
 
 ---
@@ -50,7 +53,7 @@ Valores **meramente teóricos** para diseño y primera implementación Android. 
 | `TOPO_UPDATE_MAX_ENTRIES` | 8 | rutas/mensaje |
 | `ROUTE_TABLE_MAX` | 32 | entradas/nodo |
 | `MAX_CHILDREN` | 4 | hijos directos |
-| `MAX_NEIGHBORS` | 8 | vecinos TCP |
+| `MAX_NEIGHBORS` | 8 | vecinos (×2 sockets c/u) |
 | `JOIN_RETRY_MAX` | 3 | reintentos |
 | `TCP_PAYLOAD_MAX` | 1400 | bytes |
 | `DATA_USER_MAX` | 1024 | bytes |
@@ -177,4 +180,4 @@ Tráfico chat: 1 msg/s × 1222 B max ≈ 1222 B/s (carga usuario).
 
 | Versión | Fecha | Cambio |
 |---|---|---|
-| 0.1.0-pre | 2026-06 | Spec inicial Incremento 1 |
+| 0.2.1-draft | 2026-08 | Dos canales TCP: control 8765 + datos 8766 |
