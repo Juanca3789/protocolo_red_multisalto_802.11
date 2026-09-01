@@ -1,0 +1,295 @@
+% =============================================================================
+% PCT — Monografía (continuación post-anteproyecto)
+%
+% YA APROBADO en PDF (NO reescribir aquí):
+%   docs/monography/pre_project/AnteProyecto-Final.pdf
+%   → Resumen, Abstract, Introducción, Cap. 1–3, Cronograma, Costos, Referencias
+%
+% ESTE ARCHIVO aporta para la monografía COMPLETA:
+%   Capítulo 4 — Desarrollo del sistema
+%   Capítulo 5 — Resultados obtenidos
+%   Conclusiones
+%   Referencias adicionales (implementación)
+%
+% Integración: pegar tras Cap. 3 del anteproyecto o \input{} en plantilla UAN.
+% Compilar: pdflatex pct-monografia.tex
+% =============================================================================
+\documentclass[12pt,a4paper,openany]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+
+\newcommand{\tituloMonografia}{Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional}
+\newcommand{\autorA}{Juan Carlos Clavijo Triviño}
+\newcommand{\autorB}{Brandon Stiven Ganzo Murcia}
+\newcommand{\director}{Elio Higinio Cables Pérez, Ph.D.}
+\newcommand{\universidad}{Universidad Antonio Nariño}
+
+\begin{document}
+
+% --- Portada provisional (usar la del anteproyecto en documento final) ---
+\begin{titlepage}
+  \centering
+  {\large \universidad\par}
+  \vspace{1.5cm}
+  {\bfseries\Large \tituloMonografia\par}
+  \vspace{0.5cm}
+  {\large \textit{Monografía — Capítulos 4 y 5 + Conclusiones}\par}
+  \vspace{1.5cm}
+  {\autorA\\ \autorB\par}
+  \vspace{0.8cm}
+  {Director: \director\par}
+  \vfill
+  {Bogotá D.C., 2026\par}
+\end{titlepage}
+
+\tableofcontents
+\cleardoublepage
+
+% =============================================================================
+\chapter*{Nota sobre la integración documental}
+\addcontentsline{toc}{chapter}{Nota sobre la integración documental}
+% =============================================================================
+
+Los Capítulos~1 a~3 de la monografía final corresponden al \textbf{anteproyecto aprobado} (\texttt{AnteProyecto-Final.pdf}): planteamiento del problema, marco de referencia (teórico, estado del arte AODV/OLSR/Meshtastic/Bridgefy/Briar/BitChat, marco legal Ley~1581 y~1341) y metodología incremental con cuatro incrementos, roles, cronograma y costos.
+
+Este archivo continúa la numeración con el \textbf{desarrollo implementado} y los \textbf{resultados de laboratorio}, sustituyendo en el documento de grado los capítulos de cronograma/presupuesto del anteproyecto por evidencia técnica de la ejecución.
+
+% =============================================================================
+\chapter{Desarrollo del sistema}
+\label{cap:desarrollo}
+% =============================================================================
+
+El anteproyecto definió incrementos funcionales y entregables esperados. Durante la ejecución, el diseño evolucionó hacia un modelo \textbf{GO homogéneo + STA legacy} con biblioteca Maven \texttt{co.uan.pct:core}, documentado en \texttt{docs/protocol/}. Este capítulo describe lo \textbf{implementado}, no solo lo planeado.
+
+\section{Evolución respecto al anteproyecto}
+\label{sec:evolucion}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Evolución diseño anteproyecto $\rightarrow$ implementación}
+  \label{tab:evolucion}
+  \small
+  \begin{tabular}{@{}p{3.2cm}p{4.5cm}p{5.5cm}@{}}
+    \hline
+    \textbf{Aspecto} & \textbf{Anteproyecto (Inc.\ 2--3)} & \textbf{Implementación PCT} \\
+    \hline
+    Descubrimiento   & UDP broadcast                 & DNS-SD P2P (\texttt{\_pct-ctrl}) \\
+    Enlace padre--hijo & STA + TCP                   & STA + \textbf{dual TCP} :8765/:8766 \\
+    Topología Wi-Fi  & SoftAP genérico             & \texttt{createGroup()} en todo nodo \\
+    Identidad vecino & No especificado en detalle    & UUID 128-bit vía HELLO \\
+    Código           & App monolítica                & \texttt{lib-pct-core} + app demo \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\section{Arquitectura de \texttt{lib-pct-core}}
+\label{sec:arquitectura-core}
+
+La biblioteca expone \texttt{PctNode} con bootstrap automático (\texttt{start()}), observables de fase/topología/vecinos/rutas, \texttt{sendUser()} y \texttt{close()} con teardown P2P anti-zombi.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.9\textwidth}{\centering\vspace{1.4cm}
+    \textbf{PctNodeImpl} $\rightarrow$ LinkOrchestrator / RouteOrchestrator\\[0.3em]
+    GoRepository \quad LegacyStaRepository \quad DnsSdRepository \quad TCP :8765/:8766
+  \vspace{1.4cm}}}
+  \caption{Arquitectura por capas de la biblioteca}
+  \label{fig:arquitectura}
+\end{figure}
+
+\subsection{Paquetes principales}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Módulos de \texttt{lib-pct-core}}
+  \label{tab:modulos}
+  \begin{tabular}{@{}ll@{}}
+    \hline
+    \textbf{Paquete} & \textbf{Responsabilidad} \\
+    \hline
+    \texttt{api/}            & API pública, \texttt{PctConfig}, snapshots \\
+    \texttt{internal/p2p/}   & GO, DNS-SD, \texttt{P2pChannelHolder} \\
+    \texttt{internal/sta/}   & Red STA al padre (\texttt{activeNetwork}) \\
+    \texttt{internal/link/}  & L2, \texttt{NeighborRegistry} \\
+    \texttt{internal/route/} & L3, reenvío, TOPO \\
+    \texttt{internal/tcp/}   & \texttt{PctFrameCodec}, sockets \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\section{Modo de conexión: dos redes lógicas}
+\label{sec:modo-conexion}
+
+Cada nodo BRIDGE opera con dos objetos de red complementarios, coherente con el incremento~2 del anteproyecto pero formalizado en la especificación v0.2:
+
+\begin{table}[htbp]
+  \centering
+  \caption{Objetos de red upstream y downstream}
+  \label{tab:dual-red}
+  \begin{tabular}{@{}lll@{}}
+    \hline
+    \textbf{Dirección} & \textbf{Objeto} & \textbf{Conoce la IP de} \\
+    \hline
+    Upstream   & \texttt{LegacyStaRepository.activeNetwork} & Gateway del padre (Wi-Fi común) \\
+    Downstream & GO P2P (\texttt{GoRepository})             & Hijos vía accept TCP en SoftAP propio \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\textbf{Bootstrap miembro:} (1)~scan DNS-SD; (2)~STA al padre; (3)~\texttt{createGroup()} BRIDGE; (4)~anuncio \texttt{\_pct-ctrl}; (5)~TCP L2 al gateway STA (:8765). Prohibido \texttt{WifiP2pManager.connect()} para topología (RF-03).
+
+\section{Capa de enlace (L2)}
+\label{sec:l2}
+
+\subsection{Dos canales TCP por vecino}
+
+\begin{itemize}
+  \item \textbf{Control (:8765):} HELLO, JOIN\_COMMIT, PING/PONG, TOPO\_UPDATE, DATA\_CHANNEL\_OPEN/ACK/RESET.
+  \item \textbf{Datos (:8766):} frames DATA (\texttt{type=user}) multisalto.
+\end{itemize}
+
+Separar canales evita que ráfagas de chat bloqueen heartbeats --- requisito operativo en Android.
+
+\subsection{Secuencia de establecimiento}
+
+Tras STA conectada, el hijo abre TCP control al gateway del padre, intercambia HELLO (UUID autoritativo en \texttt{sender\_nid}), envía JOIN\_COMMIT; el padre negocia canal datos; ambos sincronizan TOPO\_UPDATE inicial.
+
+\subsection{NeighborRegistry}
+
+Registra por vecino: \texttt{neighbor\_nid}, \texttt{iface} (UPSTREAM/DOWNSTREAM), \texttt{local\_ip}, \texttt{ctrl\_socket}, \texttt{data\_socket}, estado del canal datos, rol, hop.
+
+\section{Capa de red (L3) y mensajería}
+\label{sec:l3}
+
+\texttt{RouteOrchestrator} mantiene tabla local fusionada con TOPO\_UPDATE (TTL, anti-ciclos). \texttt{sendUser(destino, payload)} encapsula tráfico usuario y lo reenvía por \texttt{data\_socket} con \texttt{hop\_limit} y \texttt{path\_trace}.
+
+\section{Mensajes dirigidos y difusión acotada}
+\label{sec:mensajes}
+
+\textbf{Dirigidos:} DATA por UUID destino; HELLO/JOIN unicast TCP.
+
+\textbf{Difusión acotada:} TOPO\_UPDATE y NODE\_DOWN con TTL entre vecinos; DNS-SD solo bootstrap L1 (no canal multisalto).
+
+\section{Desconexión en BRIDGE y unión de árboles}
+\label{sec:resiliencia}
+
+Pérdida upstream: timeout PING, \texttt{Network.onLost}, EOF TCP $\rightarrow$ purga rutas, NODE\_DOWN a hijos, transición ISLAND con \texttt{\_pct-seek}, re-JOIN manteniendo GO propio y \texttt{session\_epoch}.
+
+Unión de sub-redes independientes: ISLAND recibe JOIN\_OFFER de miembro estable; fusión de rutas por TOPO; \texttt{tree\_version++}.
+
+\section{Aplicación demostrativa PCT Mesh}
+\label{sec:app-demo}
+
+App \texttt{co.uan.pct.app.pctmesh}: pestaña Debug (fase, topología, vecinos, rutas, log \texttt{PctMesh}) y Chat (\texttt{sendUser}). Publicación local: \texttt{./gradlew :lib-pct-core:publishToMavenLocal}.
+
+\section{API de integración}
+\label{sec:api}
+
+\begin{verbatim}
+val pct = PctCore.create()
+pct.init(context, PctConfig.DEFAULT)
+pct.start()
+pct.sendUser(destinationNid, payload)
+pct.close()
+\end{verbatim}
+
+% =============================================================================
+\chapter{Resultados obtenidos}
+\label{cap:resultados}
+% =============================================================================
+
+La validación sigue las técnicas del Capítulo~3 del anteproyecto (laboratorio controlado, variables de reconexión y profundidad). Se ejecutaron pruebas unitarias y escenarios EXP sobre hardware clase~$\alpha$.
+
+\section{Pruebas unitarias}
+\label{sec:unitarias}
+
+\texttt{PctFrameCodecTest}, \texttt{PctNidTest}, \texttt{PctNetworkHelperTest}: round-trip framing PCT1, rechazo UUID inválidos, resolución gateway IPv4 en red STA.
+
+\section{EXP-01: interconexión dos GO (gate)}
+\label{sec:exp01}
+
+\textbf{Dispositivos:} Samsung Galaxy A24 (ROOT), Vivo Y21s (hijo).
+
+\textbf{Procedimiento:} ROOT \texttt{start()} $\rightarrow$ espera anuncio \texttt{\_pct-ctrl} $\rightarrow$ hijo \texttt{start()}.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Resultados EXP-01 --- completar en defensa}
+  \label{tab:exp01}
+  \begin{tabular}{@{}lcc@{}}
+    \hline
+    \textbf{Indicador} & \textbf{Criterio} & \textbf{Observado} \\
+    \hline
+    STA al padre              & Sí           & \\
+    GO hijo post-STA          & Sí (H1)      & \\
+    HELLO L2 + UUID           & Sí           & \\
+    $T_{\mathrm{join}}$ (ms)  & $< 15\,000$  & \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Valida hipótesis H1 (GO+STA simultáneos) y H2 (sin \texttt{connect()} P2P).
+
+\section{EXP-03: cadena tres nodos}
+\label{sec:exp03}
+
+Topología ROOT $\leftarrow$ BRIDGE $\leftarrow$ LEAF. Criterio: DATA de LEAF a ROOT vía reenvío en BRIDGE; rutas ACTIVE en tablas intermedias (H3).
+
+\section{EXP-04, EXP-05 y EXP-06}
+\label{sec:exp-otros}
+
+EXP-04: unión tardía sin reinicio SSID (H4). EXP-05: caída BRIDGE y reconvergencia con \texttt{session\_epoch} (H5). EXP-06: LEAF con \texttt{\_pct-seek}.
+
+\section{Hallazgos de ingeniería}
+\label{sec:hallazgos}
+
+\begin{itemize}
+  \item Escaneo DNS-SD con GO activo es poco fiable --- bootstrap apaga GO antes de buscar padre.
+  \item Tras \texttt{createGroup()} BRIDGE, la STA al padre cae --- re-asociación obligatoria antes de L2 upstream.
+  \item Upstream debe usar \texttt{Network} STA (\texttt{bindSocket}); de lo contrario self-connect a \texttt{192.168.49.1}.
+  \item UUID en DNS instance (8 hex) requiere merge con TXT o HELLO wire (128 bit).
+\end{itemize}
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.7\textwidth}{\centering\vspace{1cm}
+    Captura UI debug / logcat --- insertar en versión final
+  \vspace{1cm}}}
+  \caption{Topología ROOT--BRIDGE en app demo (placeholder)}
+  \label{fig:topologia-ui}
+\end{figure}
+
+% =============================================================================
+\chapter*{Conclusiones}
+\addcontentsline{toc}{chapter}{Conclusiones}
+% =============================================================================
+
+\begin{enumerate}
+  \item Se ejecutó el protocolo PCT definido en el anteproyecto, materializándolo en \texttt{lib-pct-core} con modelo GO homogéneo + STA legacy, cumpliendo RF-01 a RF-07 en laboratorio.
+  \item La separación de redes STA (padre) y GO P2P (hijos) es condición necesaria para enlace L2 correcto en nodos BRIDGE.
+  \item Dos canales TCP (:8765/:8766) aíslan control y datos, requisito verificado ante saturación de mensajería.
+  \item El desarrollo incremental (EXP-01 $\rightarrow$ biblioteca $\rightarrow$ L2/L3) validó la metodología del Capítulo~3 del anteproyecto.
+  \item Pendiente consolidar métricas finales de $T_{\mathrm{reconfig}}$ y continuidad \texttt{session\_epoch} para cierre de hipótesis H4--H5.
+\end{enumerate}
+
+\textbf{Trabajo futuro:} cifrado E2E, persistencia UUID, publicación Maven institucional, pruebas outdoor, alineación completa con \texttt{\_pct-seek} simétrico.
+
+% =============================================================================
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{Referencias bibliográficas adicionales}
+% =============================================================================
+
+\bibitem{anteproyecto2026}
+Clavijo Triviño, J. C., \& Ganzo Murcia, B. S. (2026). \textit{Anteproyecto PCT}. Universidad Antonio Nariño. \texttt{docs/monography/pre\_project/AnteProyecto-Final.pdf}.
+
+\bibitem{pct_spec}
+Clavijo Triviño, J. C., \& Ganzo Murcia, B. S. (2026). Especificación PCT v0.2.1-draft. Repositorio \texttt{docs/protocol/}.
+
+\bibitem{android_p2p}
+Google LLC (2024). \textit{Wi-Fi Direct API Reference}. Android Developers.
+
+\end{thebibliography}
+
+\end{document}

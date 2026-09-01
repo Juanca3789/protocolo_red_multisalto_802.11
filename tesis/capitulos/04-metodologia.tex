@@ -1,0 +1,101 @@
+\chapter{Metodología}
+\label{cap:metodologia}
+
+\section{Tipo de investigación}
+\label{sec:tipo-investigacion}
+
+El proyecto combina investigación aplicada y desarrollo tecnológico: a partir del planteamiento del anteproyecto se define un diseño formal del protocolo (Incremento~1), se implementa en software (Incremento~2 y siguientes) y se valida mediante experimentos controlados en laboratorio con dispositivos Android comerciales.
+
+\section{Enfoque incremental}
+\label{sec:enfoque-incremental}
+
+La metodología sigue entregas incrementales trazables:
+
+\begin{enumerate}[label=\textbf{I\arabic*.}]
+  \item \textbf{Incremento 1 --- Diseño formal:} arquitectura, requisitos, wire format TCP, máquinas de estado, matriz de validación (\texttt{docs/protocol/}, versión spec 0.1.0-pre).
+  \item \textbf{Incremento 2 --- Capas formales:} modelo OSI emulado, L2 (enlace TCP dual), L3 (red), envoltorio de paquetes (spec 0.2.1-draft).
+  \item \textbf{Implementación por fases A--D:} enlace $\rightarrow$ tabla de rutas $\rightarrow$ reenvío multisalto $\rightarrow$ endurecimiento.
+  \item \textbf{Validación experimental:} experimentos EXP-01 a EXP-06 con criterios de aceptación medibles.
+\end{enumerate}
+
+\section{Fases de implementación}
+\label{sec:fases-implementacion}
+
+La Tabla~\ref{tab:fases} resume las fases de la hoja de ruta (\texttt{17-implementation-roadmap.md}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Fases de implementación lib-pct-core}
+  \label{tab:fases}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Fase} & \textbf{Objetivo} \\
+    \midrule
+    A & Capa de enlace formal: TCP :8765/:8766, NeighborRegistry \\
+    B & Tabla de rutas local y TOPO\_UPDATE \\
+    C & Reenvío multisalto (ForwardWorker) en canal datos \\
+    D & NODE\_DOWN, rutas STALE, persistencia UUID, \texttt{\_pct-seek} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Matriz de validación experimental}
+\label{sec:matriz-validacion}
+
+\subsection{Hipótesis}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Hipótesis principales}
+  \label{tab:hipotesis}
+  \begin{tabular}{@{}cl@{}}
+    \toprule
+    \textbf{ID} & \textbf{Hipótesis} \\
+    \midrule
+    H1 & GO propio + STA legacy upstream simultáneos en clase $\alpha$ \\
+    H2 & Dos GO interconectados sin \texttt{connect()} \\
+    H3 & Cadena de tres nodos con reenvío TCP \\
+    H4 & Unión tardía sin reinicio de SSID \\
+    H5 & Reconexión mantiene \texttt{session\_epoch} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Experimentos}
+
+\textbf{EXP-01 (gate crítico):} interconexión de dos GO. Criterio: hijo mantiene GO propio tras STA; HELLO + JOIN\_COMMIT exitosos; $T_{\mathrm{join}} < 15$~s.
+
+\textbf{EXP-02:} DNS-SD con GO local sin Group Client.
+
+\textbf{EXP-03:} cadena ROOT $\leftarrow$ BRIDGE $\leftarrow$ LEAF; DATA de C a A vía reenvío en B.
+
+\textbf{EXP-04:} unión tardía de nodo ISLAND a red operativa.
+
+\textbf{EXP-05:} caída de BRIDGE y reconvergencia de sub-árbol.
+
+\textbf{EXP-06:} LEAF anuncia \texttt{\_pct-seek} y recibe JOIN\_OFFER.
+
+\section{Entorno de laboratorio}
+\label{sec:entorno-lab}
+
+\begin{itemize}
+  \item \textbf{Dispositivos:} mínimo cuatro smartphones clase~$\alpha$ (p.\ ej.\ Samsung Galaxy A24, Vivo Y21s).
+  \item \textbf{Herramientas:} Android Studio, Gradle, ADB, logcat (\texttt{PctMesh}).
+  \item \textbf{Software:} app demo \texttt{pctmesh}, biblioteca \texttt{co.uan.pct:core}.
+  \item \textbf{Red:} entorno indoor sin AP externo; grupos P2P aislados.
+\end{itemize}
+
+\section{Técnicas de recolección de datos}
+\label{sec:recoleccion-datos}
+
+\begin{enumerate}
+  \item Logs estructurados en tag \texttt{PctMesh} (bootstrap, L2, DNS-SD).
+  \item Snapshots de UI debug: fase, vecinos, rutas, diagnóstico DNS-SD.
+  \item Medición de $T_{\mathrm{join}}$, $T_{\mathrm{reconfig}}$ con marca temporal en logs.
+  \item Tests unitarios JUnit: codec TCP, parseo UUID, utilidades de red.
+\end{enumerate}
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-metodologia}
+
+La metodología garantiza trazabilidad desde requisitos hasta código y experimentos. EXP-01 actúa como compuerta: su fallo obliga a reclasificar hardware antes de pruebas multisalto.

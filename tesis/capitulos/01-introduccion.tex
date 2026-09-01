@@ -1,0 +1,68 @@
+\chapter{Introducción}
+\label{cap:introduccion}
+
+\section{Planteamiento del problema}
+\label{sec:planteamiento}
+
+Las redes de datos en entornos sin infraestructura fija ---desastres naturales, operaciones de campo, comunidades rurales o escenarios tácticos--- requieren conectividad entre dispositivos móviles sin depender de torres celulares ni puntos de acceso cableados. Las redes \emph{ad hoc} y \emph{mesh} permiten que cada nodo actúe como repetidor, formando topologías multisalto donde un mensaje puede atravesar varios dispositivos intermedios antes de llegar a su destino lógico.
+
+En smartphones comerciales con Android, las opciones tradicionales presentan limitaciones severas: \emph{Wi-Fi Direct} fue concebido para enlaces punto a punto entre aplicaciones, no para construir árboles de decenas de nodos; modificar la capa MAC o inyectar tramas 802.11 exige \emph{root}; y el \emph{NAT} del kernel no ofrece enrutamiento lógico por identidad de aplicación. Un protocolo de capa de aplicación que emule funciones de red sobre Wi-Fi convencional, sin privilegios elevados, constituye una línea de investigación pertinente para ingeniería de sistemas.
+
+Este proyecto de grado propone el \textbf{Protocolo de Control Topológico (PCT)}: un protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional en dispositivos Android~12+ (API~31).
+
+\section{Justificación}
+\label{sec:justificacion}
+
+La justificación del trabajo reposa en cuatro ejes:
+
+\begin{enumerate}[label=\arabic*.]
+  \item \textbf{Accesibilidad hardware.} Aprovechar smartphones comerciales con Wi-Fi Direct (mandatorio en CDD Android) evita hardware especializado.
+  \item \textbf{Modelo homogéneo.} Exigir que todo nodo sea Group Owner (GO) de su propio grupo simplifica el arranque y la re-convergencia tras fallos parciales.
+  \item \textbf{Identidad lógica estable.} Enrutar por UUID (\texttt{node\_id}) desacopla la topología lógica de las direcciones IPv4 locales, que cambian en cada subred SoftAP.
+  \item \textbf{Continuidad de sesión.} Mantener \texttt{session\_epoch} ante reconexiones reduce la pérdida de contexto conversacional en aplicaciones de mensajería mesh.
+\end{enumerate}
+
+\section{Objetivo general}
+\label{sec:objetivo-general}
+
+Diseñar, implementar y validar un protocolo distribuido de control topológico (PCT) que permita formar y operar redes multisalto sobre Wi-Fi convencional en Android, con enrutamiento lógico por identidad, reconfiguración sin reinicio global y continuidad de sesión ante cambios de ruta.
+
+\section{Objetivos específicos}
+\label{sec:objetivos-especificos}
+
+\begin{enumerate}[label=\arabic*.]
+  \item Definir la arquitectura del protocolo PCT, incluyendo planos de descubrimiento, control y datos, con trazabilidad a requisitos funcionales y no funcionales.
+  \item Especificar el modelo de enlace basado en GO homogéneo y asociación STA legacy al SoftAP del padre, prohibiendo \texttt{WifiP2pManager.connect()} para topología.
+  \item Diseñar la capa de enlace (L2) con dos canales TCP por vecino (control :8765 y datos :8766) y registro formal de vecinos (\texttt{NeighborRegistry}).
+  \item Diseñar la capa de red (L3) con tabla de rutas local, propagación \texttt{TOPO\_UPDATE} y reenvío multisalto de tráfico usuario.
+  \item Implementar la biblioteca \texttt{lib-pct-core} (\texttt{co.uan.pct:core}) y una aplicación demo que evidencie bootstrap, topología y mensajería.
+  \item Validar experimentalmente las hipótesis H1--H5 mediante la matriz EXP-01 a EXP-06 en laboratorio con dispositivos clase~$\alpha$.
+\end{enumerate}
+
+\section{Alcance y limitaciones}
+\label{sec:alcance}
+
+\subsection{Alcance}
+
+\begin{itemize}
+  \item Plataforma Android~12+ (\texttt{minSdk}~31), Kotlin, biblioteca Maven publicable.
+  \item Topología física en árbol: un enlace STA upstream por nodo en el perfil mínimo.
+  \item Profundidad máxima de siete saltos lógicos (\texttt{HOP\_LIMIT\_MAX}).
+  \item Descubrimiento bootstrap vía DNS-SD P2P (\texttt{\_pct-ctrl}, \texttt{\_pct-seek}).
+  \item Codificación wire binaria big-endian (v1).
+\end{itemize}
+
+\subsection{Limitaciones}
+
+\begin{itemize}
+  \item Sin cifrado extremo a extremo (RF-17, fuera de alcance v1).
+  \item Sin QoS diferenciado (RF-18).
+  \item PSK del GO en TXT DNS-SD solo para laboratorio controlado.
+  \item Perfil hardware mínimo: clase~$\alpha$ (dual GO+STA concurrente verificado).
+  \item Sin modificación de driver Wi-Fi ni acceso MAC/PHY.
+\end{itemize}
+
+\section{Estructura del documento}
+\label{sec:estructura-documento}
+
+El Capítulo~\ref{cap:marco-teorico} presenta fundamentos de redes mesh, Wi-Fi Direct y el modelo OSI emulado. El Capítulo~\ref{cap:marco-referencial} expone antecedentes, requisitos y restricciones Android. El Capítulo~\ref{cap:metodologia} describe la metodología incremental y la matriz experimental. El Capítulo~\ref{cap:analisis-diseno} detalla el análisis y diseño del sistema PCT. El Capítulo~\ref{cap:desarrollo} documenta la implementación en \texttt{lib-pct-core}. El Capítulo~\ref{cap:pruebas} reporta pruebas y resultados. El Capítulo~\ref{cap:conclusiones} cierra con conclusiones y trabajo futuro.

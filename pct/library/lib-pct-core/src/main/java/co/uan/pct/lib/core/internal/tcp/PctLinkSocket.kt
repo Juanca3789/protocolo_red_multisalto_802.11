@@ -6,6 +6,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketAddress
+import co.uan.pct.lib.core.internal.util.PctNetworkHelper
 
 /**
  * Socket PCT con framing PCT1. Outbound: connect directo; inbound: adopción vía [adoptInbound].
@@ -16,23 +18,51 @@ internal abstract class PctLinkSocket(
     private var adopted: Socket? = null
 
     protected fun connectOutbound(host: String, port: Int, network: Network?) {
-        if (network != null) {
-            network.bindSocket(this)
-        }
         soTimeout = 0
+        tcpNoDelay = true
+        if (network != null) {
+            val connected = Socket()
+            network.bindSocket(connected)
+            connected.soTimeout = 0
+            connected.tcpNoDelay = true
+            connected.connect(InetSocketAddress(host, port), 15_000)
+            adoptInbound(connected)
+            logConnect(network, host, port, connected)
+            return
+        }
         connect(InetSocketAddress(host, port), 15_000)
+    }
+
+    private fun logConnect(network: Network, host: String, port: Int, connected: Socket) {
+        android.util.Log.i(
+            "PctMesh",
+            "[L2] tcp connect $host:$port via net=$network local=" +
+                "${PctNetworkHelper.normalizeIp(connected.localSocketAddress)} " +
+                "remote=${PctNetworkHelper.normalizeIp(connected.remoteSocketAddress)}",
+        )
     }
 
     protected fun adoptInbound(socket: Socket) {
         adopted = socket
         soTimeout = 0
+        tcpNoDelay = true
     }
+
+    fun peerIp(): String = PctNetworkHelper.remoteIp(this)
 
     override fun getInputStream(): InputStream = adopted?.inputStream ?: super.getInputStream()
 
     override fun getOutputStream(): OutputStream = adopted?.outputStream ?: super.getOutputStream()
 
-    override fun isClosed(): Boolean = adopted?.isClosed ?: super.isClosed()
+    override fun getRemoteSocketAddress(): SocketAddress? =
+        adopted?.remoteSocketAddress ?: super.remoteSocketAddress
+
+    override fun getLocalSocketAddress(): SocketAddress? =
+        adopted?.localSocketAddress ?: super.localSocketAddress
+
+    override fun isConnected(): Boolean = adopted?.isConnected ?: super.isConnected
+
+    override fun isClosed(): Boolean = adopted?.isClosed ?: super.isClosed
 
     override fun close() {
         runCatching { adopted?.close() }
@@ -105,18 +135,20 @@ internal class PctDataSocket private constructor() : PctLinkSocket(PctMsgType.DA
     }
 }
 
-internal class PctControlServerSocket(port: Int) : java.net.ServerSocket() {
+internal class PctControlServerSocket(port: Int, network: Network? = null) : java.net.ServerSocket() {
     init {
         reuseAddress = true
+        PctNetworkHelper.bindServer(this, network)
         bind(InetSocketAddress(port))
     }
 
     fun acceptControl(): PctControlSocket = PctControlSocket(accept())
 }
 
-internal class PctDataServerSocket(port: Int) : java.net.ServerSocket() {
+internal class PctDataServerSocket(port: Int, network: Network? = null) : java.net.ServerSocket() {
     init {
         reuseAddress = true
+        PctNetworkHelper.bindServer(this, network)
         bind(InetSocketAddress(port))
     }
 

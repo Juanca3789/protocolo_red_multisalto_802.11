@@ -44,9 +44,13 @@ fun MeshScreen(
         verticalArrangement = Arrangement.spacedBy(space.xs),
     ) {
         Text(
-            text = "${state.nodeId.take(8).ifEmpty { "…" }}… · ${state.phase.name}",
+            text = "Fase: ${state.phase.name}",
             style = tokens.typography.section,
             color = tokens.colors.primary,
+        )
+        CopyableUuid(
+            label = "nodeId (toca para copiar)",
+            uuid = state.nodeId,
         )
         Text(
             text = debug.action,
@@ -89,9 +93,9 @@ fun MeshScreen(
             MonoLine("(ninguno)")
         } else {
             state.neighbors.neighbors.forEach { n ->
-                MonoLine(
-                    "${n.neighborNid.take(8)}… ${n.iface.name} ${n.role} " +
-                        "data=${n.dataChannelState.name} ip=${n.localIp}",
+                CopyableUuid(
+                    label = "${n.iface.name} · ${n.role} · data=${n.dataChannelState.name} · ip=${n.localIp}",
+                    uuid = n.neighborNid,
                 )
             }
         }
@@ -102,9 +106,9 @@ fun MeshScreen(
             MonoLine("(ninguna)")
         } else {
             state.routes.entries.forEach { r ->
-                MonoLine(
-                    "${r.destinationUuid.take(8)}… → ${r.nextHopUuid.take(8)}… " +
-                        "hop=${r.hopCount} ip=${r.nextHopLocalIp ?: "—"}",
+                CopyableUuid(
+                    label = "→ ${r.nextHopUuid} hop=${r.hopCount} ip=${r.nextHopLocalIp ?: "—"}",
+                    uuid = r.destinationUuid,
                 )
             }
         }
@@ -118,6 +122,7 @@ fun MeshScreen(
                 debug.candidates.forEachIndexed { i, c ->
                     MonoLine("[$i] ${c.deviceName} · ${c.role} hop=${c.hop}")
                     MonoLine("    ${c.goSsid}")
+                    CopyableUuid(label = "candidato nid", uuid = c.nodeId)
                 }
             }
         }
@@ -180,13 +185,11 @@ private fun TopologyBlock(topo: TopologySnapshot?) {
     }
     MonoLine("self  ${topo.self.role} hop=${topo.self.hop}")
     topo.self.goSsid?.let { MonoLine("      $it") }
-    MonoLine(
-        "padre " + (
-            topo.parent?.let { "${it.nodeId.take(8)}… ${it.role}" } ?: "ninguno"
-            ),
-    )
+    topo.parent?.let { parent ->
+        CopyableUuid(label = "padre · ${parent.role}", uuid = parent.nodeId)
+    } ?: MonoLine("padre ninguno")
     MonoLine("hijos ${topo.children.size}")
     topo.children.forEachIndexed { i, child ->
-        MonoLine("  [$i] ${child.nodeId.take(12)}…")
+        CopyableUuid(label = "hijo[$i] · ${child.role} hop=${child.hop}", uuid = child.nodeId)
     }
 }

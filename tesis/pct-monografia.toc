@@ -1,0 +1,24 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {chapter}{Nota sobre la integración documental}{2}{}%
+\contentsline {chapter}{\numberline {1}Desarrollo del sistema}{3}{}%
+\contentsline {section}{\numberline {1.1}Evolución respecto al anteproyecto}{3}{}%
+\contentsline {section}{\numberline {1.2}Arquitectura de \texttt {lib-pct-core}}{3}{}%
+\contentsline {subsection}{\numberline {1.2.1}Paquetes principales}{4}{}%
+\contentsline {section}{\numberline {1.3}Modo de conexión: dos redes lógicas}{4}{}%
+\contentsline {section}{\numberline {1.4}Capa de enlace (L2)}{5}{}%
+\contentsline {subsection}{\numberline {1.4.1}Dos canales TCP por vecino}{5}{}%
+\contentsline {subsection}{\numberline {1.4.2}Secuencia de establecimiento}{5}{}%
+\contentsline {subsection}{\numberline {1.4.3}NeighborRegistry}{5}{}%
+\contentsline {section}{\numberline {1.5}Capa de red (L3) y mensajería}{5}{}%
+\contentsline {section}{\numberline {1.6}Mensajes dirigidos y difusión acotada}{5}{}%
+\contentsline {section}{\numberline {1.7}Desconexión en BRIDGE y unión de árboles}{5}{}%
+\contentsline {section}{\numberline {1.8}Aplicación demostrativa PCT Mesh}{6}{}%
+\contentsline {section}{\numberline {1.9}API de integración}{6}{}%
+\contentsline {chapter}{\numberline {2}Resultados obtenidos}{7}{}%
+\contentsline {section}{\numberline {2.1}Pruebas unitarias}{7}{}%
+\contentsline {section}{\numberline {2.2}EXP-01: interconexión dos GO (gate)}{7}{}%
+\contentsline {section}{\numberline {2.3}EXP-03: cadena tres nodos}{8}{}%
+\contentsline {section}{\numberline {2.4}EXP-04, EXP-05 y EXP-06}{8}{}%
+\contentsline {section}{\numberline {2.5}Hallazgos de ingeniería}{8}{}%
+\contentsline {chapter}{Conclusiones}{9}{}%
+\contentsline {chapter}{Referencias bibliográficas adicionales}{10}{}%

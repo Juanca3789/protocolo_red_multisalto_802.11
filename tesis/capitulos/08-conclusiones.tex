@@ -1,0 +1,69 @@
+\chapter{Conclusiones y trabajo futuro}
+\label{cap:conclusiones}
+
+\section{Conclusiones}
+\label{sec:conclusiones}
+
+\begin{enumerate}
+  \item Se diseñó e implementó el protocolo PCT, un sistema distribuido de control topológico para redes multisalto sobre Wi-Fi convencional en Android~12+, cumpliendo la restricción de operar sin \emph{root} ni modificación del driver inalámbrico.
+
+  \item El modelo de enlace GO homogéneo + STA legacy demostró ser viable en dispositivos clase~$\alpha$, validando las hipótesis H1 y H2 cuando el bootstrap respeta la separación entre red STA (padre) y GO P2P (hijos).
+
+  \item La arquitectura por capas emuladas (L1 bootstrap, L2 vecindad TCP dual, L3 reenvío UUID) permite evolucionar el sistema de forma incremental sin acoplar descubrimiento DNS-SD al plano de datos multisalto.
+
+  \item La identidad lógica basada en UUID de 128 bits, intercambiada en HELLO TCP, resuelve la ambigüedad de direcciones MAC en \texttt{clientList} y habilita trazabilidad en UI y enrutamiento.
+
+  \item La separación de canales TCP :8765 (control) y :8766 (datos) es una decisión de diseño necesaria en Android para evitar que tráfico usuario bloquee heartbeats y sincronización topológica.
+
+  \item La biblioteca \texttt{co.uan.pct:core} y la aplicación demo PCT Mesh constituyen un artefacto reproducible, publicable vía Maven Local e integrable en proyectos de mensajería off-grid.
+\end{enumerate}
+
+\section{Cumplimiento de objetivos}
+\label{sec:cumplimiento-objetivos}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Trazabilidad objetivos específicos}
+  \label{tab:objetivos-cumplimiento}
+  \begin{tabular}{@{}clc@{}}
+    \toprule
+    \textbf{Obj.} & \textbf{Descripción} & \textbf{Estado} \\
+    \midrule
+    1 & Arquitectura y requisitos & Completado (spec + tesis) \\
+    2 & Modelo GO + STA legacy     & Completado \\
+    3 & Capa L2 dual TCP           & Implementado \\
+    4 & Capa L3 reenvío            & Implementado / en validación \\
+    5 & lib-pct-core + app demo    & Completado \\
+    6 & Validación EXP-01..06      & En curso \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Limitaciones del trabajo}
+\label{sec:limitaciones-trabajo}
+
+\begin{itemize}
+  \item PSK en TXT DNS-SD expuesto en laboratorio; no apto para producción.
+  \item Profundidad y tamaño de red limitados (7 hops, 32 rutas).
+  \item Dependencia de fabricante en coexistencia GO+STA.
+  \item Sin cifrado extremo a extremo ni QoS (RF-17, RF-18).
+  \item Validación en entorno indoor controlado; no se evaluó movilidad a velocidad vehicular.
+\end{itemize}
+
+\section{Trabajo futuro}
+\label{sec:trabajo-futuro}
+
+\begin{enumerate}
+  \item \textbf{Seguridad:} intercambio de claves fuera de TXT; cifrado E2E sobre canal :8766.
+  \item \textbf{Persistencia:} almacenar \texttt{node\_id} en almacenamiento seguro; sobrevivir reinstalaciones.
+  \item \textbf{DAG multipath (RF-16):} rutas BACKUP y selección de next-hop.
+  \item \textbf{Dual-STA:} perfil extendido con \texttt{CAP\_DUAL\_STA}.
+  \item \textbf{Publicación Maven} en repositorio institucional o GitHub Packages.
+  \item \textbf{Pruebas de campo:} escenarios outdoor, movilidad, interferencia.
+  \item \textbf{Integración IoT:} gateway PCT hacia infraestructura IP fija.
+\end{enumerate}
+
+\section{Cierre}
+\label{sec:cierre}
+
+PCT demuestra que es posible construir redes mesh lógicas sobre smartphones Android comerciales, usando Wi-Fi Direct y STA legacy como primitivas físicas y un protocolo de aplicación con identidad UUID y continuidad de sesión. El trabajo sienta bases formales (especificación en \texttt{docs/protocol/}), implementación (\texttt{lib-pct-core}) y metodología de validación reproducible para extensiones futuras.

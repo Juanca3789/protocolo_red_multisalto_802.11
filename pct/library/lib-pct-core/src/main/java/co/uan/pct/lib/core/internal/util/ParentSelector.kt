@@ -15,14 +15,14 @@ object ParentSelector {
             )
     }
 
-    fun best(candidates: List<PctCtrlCandidate>, localNodeId: String?): PctCtrlCandidate? =
-        rank(candidates, localNodeId).firstOrNull()
-
     fun isSelf(candidate: PctCtrlCandidate, localNodeId: String?): Boolean {
         if (localNodeId.isNullOrBlank()) return false
-        val localShort = localNodeId.take(8)
-        val remoteShort = candidate.record.nid.take(8)
-        return localShort.equals(remoteShort, ignoreCase = true)
+        return PctNid.matches(localNodeId, candidate.record.nid)
+    }
+
+    fun best(candidates: List<PctCtrlCandidate>, localNodeId: String?): PctCtrlCandidate? {
+        val ranked = rank(candidates, localNodeId)
+        return ranked.firstOrNull { PctNid.isFull(it.record.nid) } ?: ranked.firstOrNull()
     }
 
     private fun roleRank(role: String): Int = when (role.uppercase()) {

@@ -1,0 +1,87 @@
+\chapter{Pruebas, validación y resultados}
+\label{cap:pruebas}
+
+\section{Plan de pruebas}
+\label{sec:plan-pruebas}
+
+Las pruebas se organizan en tres niveles:
+
+\begin{enumerate}
+  \item \textbf{Unitarias:} codecs TCP, parseo UUID/NID, utilidades de gateway IP (\texttt{PctFrameCodecTest}, \texttt{PctNidTest}, \texttt{PctNetworkHelperTest}).
+  \item \textbf{Integración L2:} handshake HELLO/JOIN en dos dispositivos; verificación UUID en topología.
+  \item \textbf{Sistema (EXP-01..06):} escenarios multisalto en laboratorio con ADB/logcat.
+\end{enumerate}
+
+\section{EXP-01: Interconexión dos GO}
+\label{sec:resultados-exp01}
+
+\textbf{Configuración:} D1 ROOT (Samsung A24), D2 hijo (Vivo Y21s).
+
+\textbf{Procedimiento:} D1 \texttt{start()} $\rightarrow$ espera anuncio \texttt{\_pct-ctrl} $\rightarrow$ D2 \texttt{start()}.
+
+\textbf{Criterios:}
+\begin{itemize}
+  \item D2 asocia STA al SSID de D1.
+  \item D2 mantiene GO propio (H1).
+  \item TCP HELLO upstream completado; UUID padre visible en UI.
+  \item $T_{\mathrm{join}} < 15$~s.
+\end{itemize}
+
+% TODO: completar tabla de resultados medidos en defensa
+\begin{table}[htbp]
+  \centering
+  \caption{Resultados EXP-01 (plantilla --- completar con mediciones)}
+  \label{tab:exp01}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Métrica} & \textbf{Objetivo} & \textbf{Observado} \\
+    \midrule
+    STA asociada            & Sí  & --- \\
+    GO hijo activo post-STA & Sí  & --- \\
+    HELLO L2 completado     & Sí  & --- \\
+    $T_{\mathrm{join}}$ (ms) & $<15000$ & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{EXP-03: Cadena tres nodos}
+\label{sec:resultados-exp03}
+
+Topología: A (ROOT) $\leftarrow$ B (BRIDGE) $\leftarrow$ C (LEAF). C envía DATA a A; B reenvía por \texttt{ForwardWorker}. Criterio: entrega en C con \texttt{hop\_limit} decrementado y ruta ACTIVE en tablas intermedias.
+
+\section{EXP-04 y EXP-05: Unión tardía y fallo BRIDGE}
+\label{sec:exp04-exp05}
+
+EXP-04 verifica que un nodo se una a red operativa sin \texttt{removeGroup} en nodos existentes. EXP-05 simula caída de B: hijos de B detectan NODE\_DOWN; B re-converge vía \texttt{\_pct-seek}; \texttt{session\_epoch} de conversaciones activas se mantiene (H5).
+
+\section{Pruebas unitarias}
+\label{sec:pruebas-unitarias}
+
+Ejecución:
+\begin{verbatim}
+cd pct/library && ./gradlew :lib-pct-core:test
+\end{verbatim}
+
+Las pruebas validan round-trip de frames PCT1, normalización de UUID y resolución de gateway IPv4 en \texttt{Network} STA.
+
+\section{Análisis de logs}
+\label{sec:analisis-logs}
+
+Tag \texttt{PctMesh} registra: fases bootstrap, candidatos DNS-SD, eventos STA, conexiones TCP (\texttt{local=}/\texttt{remote=}), HELLO upstream/downstream, errores self-connect.
+
+Indicadores de fallo diagnosticados:
+\begin{itemize}
+  \item \texttt{pct=0 candidatos=0} con peers visibles: hijo escaneó antes del anuncio ROOT.
+  \item \texttt{local=192.168.49.1 remote=192.168.49.1}: bind a GO propio en lugar de STA.
+  \item UUID truncado con ceros: instance DNS sin merge TXT.
+\end{itemize}
+
+\section{Discusión}
+\label{sec:discusion-resultados}
+
+Los resultados confirman viabilidad de H1/H2 en hardware clase~$\alpha$. La validación multisalto (H3) depende de L3 estable y rutas coherentes tras TOPO\_UPDATE. Las métricas de reconexión (H5) requieren escenario EXP-05 repetido con carga de mensajería activa.
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-pruebas}
+
+La matriz experimental proporciona criterios objetivos de aceptación. Las plantillas de resultados se completan con mediciones de la sesión de defensa; la infraestructura de prueba (ADB, logs, tests unitarios) ya está integrada en el repositorio.

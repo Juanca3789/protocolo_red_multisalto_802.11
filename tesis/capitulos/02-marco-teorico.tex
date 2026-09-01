@@ -1,0 +1,64 @@
+\chapter{Marco teórico y estado del arte}
+\label{cap:marco-teorico}
+
+\section{Redes \emph{ad hoc} y multisalto}
+\label{sec:ad-hoc}
+
+Una red \emph{ad hoc} móvil (MANET) es una colección de nodos inalámbricos que se comunican sin infraestructura preexistente~\cite{perkins2003adhoc}. Cada nodo puede actuar como host y como router. En topologías multisalto, un paquete atraviesa nodos intermedios antes de alcanzar el destino final.
+
+Los protocolos de enrutamiento MANET se clasifican en proactivos (mantienen tablas actualizadas continuamente, p.\ ej.\ OLSR) y reactivos (descubren rutas bajo demanda, p.\ ej.\ AODV, DSDV)~\cite{rfc3561}. En entornos con recursos limitados de batería y CPU ---como smartphones--- el equilibrio entre overhead de control y latencia de convergencia es crítico.
+
+\section{Redes mesh en dispositivos móviles}
+\label{sec:mesh-moviles}
+
+Soluciones comerciales y de investigación han explorado mesh sobre Android mediante Wi-Fi Direct, Bluetooth o tunelización. Proyectos como Serval Mesh y Commotion Wireless demostraron viabilidad en escenarios comunitarios, pero suelen requerir \emph{root}, firmware modificado o arquitecturas distintas al perfil homogéneo GO+STA que propone PCT.
+
+PCT se distingue por operar \textbf{exclusivamente en espacio de usuario}, sin \texttt{connect()} P2P para topología, y por separar explícitamente identidad lógica (UUID) de dirección IPv4 local.
+
+\section{Wi-Fi Direct y SoftAP}
+\label{sec:wifi-direct}
+
+Wi-Fi Direct (Wi-Fi P2P) permite que dispositivos negocien un grupo con un Group Owner (GO) que actúa como SoftAP~\cite{wifidirect2010}. Android expone la API \texttt{WifiP2pManager} con operaciones \texttt{createGroup()}, \texttt{removeGroup()} y \texttt{requestGroupInfo()}.
+
+La asociación STA legacy (\texttt{WifiNetworkSpecifier} desde API~29) permite que un dispositivo se conecte al SSID/PSK de otro GO como estación infraestructura, habilitando el patrón ``doble interfaz lógica'': GO propio para hijos downstream y STA upstream hacia el padre.
+
+\section{DNS-SD y descubrimiento de servicios}
+\label{sec:dns-sd}
+
+DNS-Based Service Discovery (DNS-SD) sobre mDNS permite anunciar y descubrir servicios en redes locales~\cite{rfc6763}. Android Wi-Fi P2P integra DNS-SD mediante \texttt{WifiP2pDnsSdServiceInfo} y \texttt{addLocalService()}. PCT utiliza registros TXT compactos para transportar \texttt{node\_id}, rol, SSID y PSK del GO en la fase bootstrap (capa L1).
+
+\section{Modelo OSI como referencia conceptual}
+\label{sec:osi-emulado}
+
+PCT no implementa una pila OSI completa; utiliza el modelo como \textbf{mapa de responsabilidades}:
+
+\begin{table}[htbp]
+  \centering
+  \caption{Correspondencia capas OSI -- PCT}
+  \label{tab:osi-pct}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Capa OSI} & \textbf{Capa PCT} & \textbf{Transporte} \\
+    \midrule
+    Física (L1)       & Radio / bootstrap & 802.11, DNS-SD \\
+    Enlace (L2)       & Vecindad          & TCP :8765, :8766 \\
+    Red (L3)          & Reenvío lógico    & DATA en :8766 \\
+    Aplicación        & Mensajería usuario & Envelope \texttt{type=user} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La regla normativa es que la capa de red \textbf{nunca} enruta por IP de destino final; la IPv4 (\texttt{next\_hop\_local\_ip}) es un dato de enlace para alcanzar al vecino inmediato.
+
+\section{Estado del arte y posicionamiento de PCT}
+\label{sec:estado-arte}
+
+% TODO: ampliar con revisión bibliográfica sistemática (Scopus/IEEE)
+Protocolos como B.A.T.M.A.N.~\cite{openwrt_batman} operan en capa~2 con visión global de vecinos por broadcast periódico. Babel~\cite{rfc8966} es un protocolo de enrutamiento vector-distancia para IPv6. Ambos asumen control sobre la interfaz de red a bajo nivel.
+
+PCT adopta un enfoque de \textbf{capa de aplicación}: construye topología y enrutamiento sobre TCP confiable vecino-a-vecino, con identidad UUID y continuidad lógica (\texttt{epoch}, \texttt{session\_epoch}). Esta decisión sacrifica integración con el stack IP del sistema operativo a cambio de despliegue sin privilegios en Android comercial.
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-marco-teorico}
+
+El marco teórico establece que las MANET multisalto en móviles requieren equilibrar overhead, identidad estable y restricciones de plataforma. Wi-Fi Direct GO + STA legacy + DNS-SD constituyen la base física de PCT; el modelo OSI emulado organiza las responsabilidades L1--L3 que se diseñan e implementan en capítulos posteriores.

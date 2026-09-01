@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.uan.pct.app.pctmesh.PctMeshApplication
+import co.uan.pct.lib.core.api.NeighborIface
 import co.uan.pct.lib.core.api.PctEvent
 import co.uan.pct.lib.core.api.PctNode
 import java.text.SimpleDateFormat
@@ -12,6 +13,7 @@ import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -22,12 +24,17 @@ data class ChatLine(
     val timestamp: String,
 )
 
+data class DestOption(
+    val label: String,
+    val nid: String,
+)
+
 data class MessengerUiState(
     val nodeId: String = "",
     val destinationNid: String = "",
     val messageText: String = "",
     val messages: List<ChatLine> = emptyList(),
-    val neighborNids: List<String> = emptyList(),
+    val destinationOptions: List<DestOption> = emptyList(),
 )
 
 class MessengerViewModel(
@@ -47,9 +54,14 @@ class MessengerViewModel(
 
     private fun bindFlows(pctNode: PctNode) {
         viewModelScope.launch {
-            pctNode.neighbors.collect { snap ->
-                val nids = snap.neighbors.map { it.neighborNid }
-                _uiState.update { it.copy(neighborNids = nids, nodeId = pctNode.nodeId) }
+            combine(
+                pctNode.neighbors,
+                pctNode.routes,
+                pctNode.topology,
+            ) { neighbors, routes, topo ->
+                buildDestinationOptions(pctNode.nodeId, neighbors, routes, topo)
+            }.collect { options ->
+                _uiState.update { it.copy(destinationOptions = options, nodeId = pctNode.nodeId) }
             }
         }
         viewModelScope.launch {
@@ -72,8 +84,45 @@ class MessengerViewModel(
         }
     }
 
+    private fun buildDestinationOptions(
+        selfNid: String,
+        neighbors: co.uan.pct.lib.core.api.NeighborSnapshot,
+        routes: co.uan.pct.lib.core.api.RouteSnapshot,
+        topo: co.uan.pct.lib.core.api.TopologySnapshot,
+    ): List<DestOption> {
+        val seen = LinkedHashSet<String>()
+        val out = ArrayList<DestOption>()
+
+        fun add(label: String, nid: String) {
+            if (nid.isBlank() || nid == selfNid || !seen.add(nid)) return
+            out.add(DestOption(label, nid))
+        }
+
+        neighbors.neighbors.forEach { n ->
+            val tag = when (n.iface) {
+                NeighborIface.UPSTREAM -> "padre"
+                NeighborIface.DOWNSTREAM -> "hijo"
+            }
+            add("Vecino $tag · ${n.role}", n.neighborNid)
+        }
+        topo.children.forEach { child ->
+            add("Topología hijo · ${child.role}", child.nodeId)
+        }
+        topo.parent?.let { add("Topología padre · ${it.role}", it.nodeId) }
+        routes.entries.forEach { r ->
+            add("Ruta hop=${r.hopCount}", r.destinationUuid)
+        }
+        return out
+    }
+
     fun onDestinationChange(value: String) {
-        _uiState.update { it.copy(destinationNid = value.filter { c -> c.isLetterOrDigit() }.take(32)) }
+        _uiState.update {
+            it.copy(destinationNid = value.filter { c -> c.isLetterOrDigit() }.take(32).lowercase())
+        }
+    }
+
+    fun selectDestination(nid: String) {
+        _uiState.update { it.copy(destinationNid = nid.lowercase()) }
     }
 
     fun onMessageChange(value: String) {

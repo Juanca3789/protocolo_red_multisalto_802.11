@@ -1,0 +1,121 @@
+\chapter{Desarrollo e implementación}
+\label{cap:desarrollo}
+
+\section{Stack tecnológico}
+\label{sec:stack}
+
+\begin{itemize}
+  \item Lenguaje: Kotlin 1.9+
+  \item Build: Gradle (Kotlin DSL), Android Library Module
+  \item \texttt{minSdk} 31, \texttt{targetSdk} 36
+  \item Coroutines + \texttt{StateFlow} para concurrencia reactiva
+  \item Publicación: Maven Local (\texttt{co.uan.pct:core})
+  \item App demo: Jetpack Compose (\texttt{pct/app/app-demo})
+\end{itemize}
+
+\section{Estructura de lib-pct-core}
+\label{sec:estructura-core}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Paquetes principales de lib-pct-core}
+  \label{tab:paquetes}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Paquete} & \textbf{Responsabilidad} \\
+    \midrule
+    \texttt{api/} & \texttt{PctNode}, \texttt{PctConfig}, snapshots públicos \\
+    \texttt{internal/p2p/} & \texttt{GoRepository}, \texttt{DnsSdRepository}, \texttt{P2pChannelHolder} \\
+    \texttt{internal/sta/} & \texttt{LegacyStaRepository}, \texttt{WifiNetworkSpecifier} \\
+    \texttt{internal/link/} & \texttt{LinkOrchestrator}, \texttt{NeighborRegistry} \\
+    \texttt{internal/route/} & \texttt{RouteOrchestrator}, tabla y reenvío \\
+    \texttt{internal/tcp/} & \texttt{PctFrameCodec}, sockets :8765/:8766 \\
+    \texttt{internal/util/} & \texttt{PctNid}, \texttt{ParentSelector}, \texttt{PctNetworkHelper} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Capa física y bootstrap (L1)}
+\label{sec:impl-l1}
+
+\subsection{P2pChannelHolder}
+
+Centraliza \texttt{WifiP2pManager.Channel}, \texttt{BroadcastReceiver} para eventos P2P y \texttt{forceTeardownP2p()} al cerrar la app (anti-proceso zombi).
+
+\subsection{GoRepository}
+
+Implementa \texttt{createGroup()}, \texttt{requestGroupInfo()} con reintentos, mapeo de \texttt{clientList} a \texttt{GoClient}, estados \texttt{GoState.Ready|Creating|Error}.
+
+\subsection{LegacyStaRepository}
+
+Mantiene \texttt{activeNetwork: Network?} --- la red STA al SoftAP del padre. Usa \texttt{ConnectivityManager.requestNetwork} con \texttt{WifiNetworkSpecifier}; el socket upstream usa \texttt{network.bindSocket()} explícito (no \texttt{bindProcessToNetwork} global).
+
+\subsection{DnsSdRepository}
+
+Registra \texttt{\_pct-ctrl} con TXT compacto (\texttt{n}, rol, hop, SSID, PSK). Descubrimiento con \texttt{discoverServices}; merge de candidatos instance+TXT; selección de padre vía \texttt{ParentSelector}.
+
+\subsection{Bootstrap automático (PctNodeImpl)}
+
+Secuencia en \texttt{bootstrap()}:
+\begin{enumerate}
+  \item \texttt{removeGroup()} si hay GO activo (requisito Android para escaneo fiable).
+  \item Scan DNS-SD con \texttt{scanSettleMs}.
+  \item Si hay candidato: STA $\rightarrow$ \texttt{createGroup()} BRIDGE $\rightarrow$ anuncio $\rightarrow$ L2 upstream.
+  \item Si no: \texttt{startAsRoot()}.
+\end{enumerate}
+
+\section{Capa de enlace (L2)}
+\label{sec:impl-l2}
+
+\subsection{PctFrameCodec}
+
+Framing \texttt{PCT1}: cabecera 12~bytes (\texttt{msg\_type}, longitud payload), payloads binarios para HELLO (59~B), JOIN\_COMMIT (40~B), PING/PONG (32~B), DATA, TOPO\_UPDATE.
+
+\subsection{PctLinkSocket}
+
+Clase base con \texttt{connectOutbound(host, port, network)}: crea \texttt{Socket}, \texttt{network.bindSocket()}, \texttt{connect()}. Evita self-connect en BRIDGE cuando GO propio también es 192.168.49.1.
+
+\subsection{LinkOrchestrator}
+
+\begin{itemize}
+  \item \texttt{onGoReady()}: lanza \texttt{ControlAcceptWorker} y \texttt{DataAcceptWorker}.
+  \item \texttt{onStaConnected()}: conecta upstream a gateway STA; HELLO; JOIN\_COMMIT.
+  \item \texttt{NeighborRegistry}: upsert/remove/update thread-safe.
+  \item \texttt{canonicalParentNid} desde HELLO wire (UUID completo 128-bit).
+  \item Recuperación upstream en EOF; DATA\_CHANNEL\_OPEN/ACK/RESET.
+\end{itemize}
+
+\subsection{Identidad UUID (PctNid)}
+
+Rechaza UUID falsos con padding de ceros; merge instance DNS (8 hex) + TXT (\texttt{n=32 hex}); validación \texttt{isFull()}.
+
+\section{Capa de red (L3)}
+\label{sec:impl-l3}
+
+\subsection{RouteOrchestrator}
+
+Construye rutas directas desde \texttt{NeighborRegistry}; procesa TOPO\_UPDATE; expone \texttt{RouteSnapshot} y \texttt{NeighborSnapshot} vía \texttt{StateFlow}.
+
+\subsection{ForwardWorker y sendUser}
+
+\texttt{sendUser(destinationNid, payload)} encapsula \texttt{UserDataPayload} y delega reenvío. Entrega local si \texttt{dst == self}; decrementa \texttt{hop\_limit}; verifica \texttt{path\_trace}.
+
+\section{Aplicación demo PCT Mesh}
+\label{sec:app-demo}
+
+La app \texttt{co.uan.pct.app.pctmesh} integra la biblioteca con:
+\begin{itemize}
+  \item Pantalla Debug: fase, topología, vecinos, rutas, log \texttt{PctMesh}.
+  \item Pantalla Chat: \texttt{sendUser} entre nodos de la mesh.
+  \item Permisos: \texttt{NEARBY\_WIFI\_DEVICES}, \texttt{ACCESS\_FINE\_LOCATION} ($\leq$ API~32).
+\end{itemize}
+
+\section{Convenciones de empaquetado UAN}
+\label{sec:empaquetado}
+
+Namespace \texttt{co.uan.pct}; experimentos numerados EXP-01..06; documentación en \texttt{docs/protocol/}; publicación local Gradle \texttt{publishToMavenLocal}.
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-desarrollo}
+
+La implementación materializa el diseño en módulos Kotlin desacoplados. La separación \texttt{LegacyStaRepository.activeNetwork} (padre) vs aceptación TCP en GO (hijos) resuelve la ambigüedad de direccionamiento en nodos BRIDGE dual-interfaz.

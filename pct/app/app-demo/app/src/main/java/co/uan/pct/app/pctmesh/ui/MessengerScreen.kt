@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uan.designsystem.uikit.components.UanButton
+import com.uan.designsystem.uikit.components.UanLists
 import com.uan.designsystem.uikit.components.UanTextField
 import com.uan.designsystem.uikit.theme.UanThemeTokens
 
@@ -34,24 +35,36 @@ fun MessengerScreen(
             .padding(horizontal = space.md, vertical = space.xs),
         verticalArrangement = Arrangement.spacedBy(space.sm),
     ) {
-        Text(
-            text = "Destino (nid 32 hex)",
-            style = tokens.typography.subtitle,
-            color = tokens.colors.primary,
-        )
+        CopyableUuid(label = "Este nodo (toca para copiar)", uuid = state.nodeId)
+
         UanTextField(
             value = state.destinationNid,
             onValueChange = viewModel::onDestinationChange,
-            label = "UUID destino",
-            placeholder = "pegar nodeId del tab Debug",
+            label = "UUID destino (32 hex)",
+            placeholder = "Selecciona abajo o pega nid completo",
             modifier = Modifier.fillMaxWidth(),
         )
-        if (state.neighborNids.isNotEmpty()) {
+
+        if (state.destinationOptions.isNotEmpty()) {
             Text(
-                text = "Vecinos: " + state.neighborNids.joinToString { it.take(8) + "…" },
-                style = tokens.typography.small,
-                color = tokens.colors.muted,
+                text = "Destinos conocidos (toca para usar)",
+                style = tokens.typography.subtitle,
+                color = tokens.colors.primary,
             )
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(space.xxxs),
+            ) {
+                items(state.destinationOptions) { option ->
+                    UanLists(
+                        title = option.label,
+                        supportingText = option.nid,
+                        onClick = { viewModel.selectDestination(option.nid) },
+                    )
+                }
+            }
         }
 
         LazyColumn(
@@ -97,7 +110,7 @@ private fun ChatBubble(line: ChatLine) {
             text = if (line.isOutgoing) {
                 "yo · ${line.timestamp}"
             } else {
-                "${line.fromNid.take(8)}… · ${line.timestamp}"
+                "${line.fromNid} · ${line.timestamp}"
             },
             style = tokens.typography.small,
             color = tokens.colors.muted,

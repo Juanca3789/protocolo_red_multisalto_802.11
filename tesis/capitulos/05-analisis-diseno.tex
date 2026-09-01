@@ -1,0 +1,162 @@
+\chapter{Análisis y diseño del sistema}
+\label{cap:analisis-diseno}
+
+\section{Arquitectura general}
+\label{sec:arquitectura}
+
+PCT se organiza en capas de presentación, protocolo y conectividad Wi-Fi (Figura~\ref{fig:arquitectura}). El \texttt{ProtocolOrchestrator} (\texttt{PctNodeImpl}) coordina JoinManager, LinkOrchestrator, RouteOrchestrator y TopologyManager.
+
+% FIGURA: diagrama de componentes (exportar desde docs/protocol/03-architecture.md)
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
+    \textit{[Figura pendiente: diagrama de componentes PCT]}\\
+    \small Fuente: elaboración propia basada en \texttt{03-architecture.md}
+  \vspace{2cm}}}
+  \caption{Arquitectura de componentes PCT}
+  \label{fig:arquitectura}
+\end{figure}
+
+\section{Modo de conexión: GO homogéneo + STA legacy}
+\label{sec:modo-conexion}
+
+\subsection{Principio rector}
+
+Todo nodo ejecuta \texttt{createGroup()} y es GO de su propio grupo. Los enlaces del árbol se establecen \textbf{exclusivamente} mediante asociación STA legacy al SSID/PSK del GO padre. Queda prohibido \texttt{WifiP2pManager.connect()} para formar topología.
+
+\subsection{Dos interfaces lógicas en un nodo BRIDGE}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Interfaces lógicas del nodo BRIDGE}
+  \label{tab:interfaces-bridge}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Dirección} & \textbf{Objeto de red} & \textbf{Conoce} \\
+    \midrule
+    Upstream   & \texttt{Network} STA (\texttt{LegacyStaRepository}) & IP gateway del padre \\
+    Downstream & GO P2P propio (\texttt{GoRepository})               & IPs DHCP de hijos \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El hijo obtiene la IP del padre como gateway de la red STA (\texttt{ConnectivityManager.getLinkProperties}). El padre obtiene la IP del hijo desde la dirección remota del socket TCP entrante en su GO (típicamente 192.168.49.x).
+
+\subsection{Secuencia bootstrap miembro}
+
+\begin{enumerate}
+  \item Scan DNS-SD \texttt{\_pct-ctrl}; lectura TXT (\texttt{nid}, \texttt{go\_ssid}, \texttt{cp}).
+  \item \texttt{requestNetwork} STA al padre.
+  \item \texttt{createGroup()} --- GO BRIDGE propio.
+  \item \texttt{addLocalService(\_pct-ctrl)}.
+  \item TCP control al gateway STA :8765 --- HELLO, JOIN\_COMMIT.
+  \item Negociación canal datos :8766 vía mensajes de control.
+\end{enumerate}
+
+\section{Capa de enlace (L2)}
+\label{sec:diseno-l2}
+
+\subsection{Dos canales TCP por vecino}
+
+Android no garantiza \emph{fairness} en un único socket TCP mezclado. PCT exige:
+
+\begin{itemize}
+  \item \textbf{Control (:8765):} HELLO, JOIN\_COMMIT, PING/PONG, TOPO\_UPDATE, señalización DATA\_CHANNEL\_*.
+  \item \textbf{Datos (:8766):} exclusivamente frames DATA (\texttt{type=user}).
+\end{itemize}
+
+\subsection{NeighborRegistry}
+
+Cada entrada almacena: \texttt{neighbor\_nid}, \texttt{iface} (UPSTREAM/DOWNSTREAM), \texttt{local\_ip}, \texttt{ctrl\_socket}, \texttt{data\_socket}, \texttt{data\_channel\_state}, rol, hop, timestamps.
+
+Invariantes: 0--1 upstream; 0--N downstream; identidad autoritativa = \texttt{sender\_nid} en HELLO.
+
+\subsection{Secuencia L2}
+
+\begin{enumerate}
+  \item Hijo conecta TCP :8765 tras STA connected.
+  \item HELLO bidireccional.
+  \item JOIN\_COMMIT (hijo $\rightarrow$ padre).
+  \item DATA\_CHANNEL\_OPEN (padre $\rightarrow$ hijo).
+  \item Hijo conecta TCP :8766; DATA\_CHANNEL\_ACK.
+  \item TOPO\_UPDATE inicial.
+\end{enumerate}
+
+\section{Capa de red (L3)}
+\label{sec:diseno-l3}
+
+\subsection{RoutingEntry}
+
+Campos: \texttt{dest\_nid}, \texttt{next\_hop\_nid}, \texttt{hop\_count}, \texttt{path\_seq}, \texttt{status} (ACTIVE/BACKUP/STALE/BROKEN), \texttt{last\_seen\_ms}.
+
+\subsection{Fusión TOPO\_UPDATE}
+
+Al recibir entrada $(dest, hop, path\_seq, origin)$: aceptar si menor \texttt{hop\_count}; en empate, mayor \texttt{path\_seq}; rechazar si \texttt{origin == self}; decrementar TTL; marcar STALE tras timeout.
+
+\subsection{ForwardWorker}
+
+\begin{verbatim}
+FUNCIÓN forward(msg DATA):
+  SI msg.dst_nid == self: ENTREGAR a aplicación
+  SI hop_limit == 0 O self in path_trace: DESCARTAR
+  entry ← routing_table[msg.dst_nid]
+  ENVIAR por data_socket(entry.next_hop_nid)  // solo :8766
+\end{verbatim}
+
+\section{Mensajes dirigidos y difusión}
+\label{sec:mensajes-broadcast}
+
+\subsection{Unicast}
+
+HELLO, JOIN\_COMMIT, JOIN\_OFFER, DATA dirigido por UUID destino con reenvío hop-a-hop en canal :8766.
+
+\subsection{Difusión acotada}
+
+\texttt{TOPO\_UPDATE} y \texttt{NODE\_DOWN} se propagan a vecinos directos con TTL (\texttt{TOPO\_TTL\_DEFAULT = 7}), sin flooding global sin control. DNS-SD actúa como broadcast de bootstrap en L1, no como canal de datos multisalto.
+
+\section{Desconexiones en BRIDGE}
+\label{sec:diseno-desconexion-bridge}
+
+Detección: timeout PING/PONG, \texttt{Network.onLost} STA, EOF en socket upstream.
+
+Secuencia:
+\begin{enumerate}
+  \item Cerrar sockets upstream; purgar NeighborRegistry y rutas vía padre.
+  \item Emitir NODE\_DOWN a hijos downstream.
+  \item Transitar a ISLAND; mantener GO; anunciar \texttt{\_pct-seek}.
+  \item Re-JOIN; \texttt{session\_epoch} sin cambio; \texttt{epoch} red solo si ROOT caído.
+\end{enumerate}
+
+Caída solo del canal :8766: DATA\_CHANNEL\_RESET vía control, sin reiniciar GO/STA.
+
+\section{Unión de árboles independientes}
+\label{sec:union-arboles}
+
+Dos sub-redes con ROOT y \texttt{epoch} distintos pueden fusionarse cuando un ISLAND de árbol~B recibe JOIN\_OFFER de un BRIDGE de árbol~A. El árbol absorbente incrementa \texttt{tree\_version}; las rutas cruzadas se aprenden por TOPO\_UPDATE. Anti-ciclos: \texttt{path\_trace} + \texttt{hop\_limit}.
+
+\section{Servicios DNS-SD}
+\label{sec:dns-sd-diseno}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Servicios DNS-SD PCT}
+  \label{tab:dns-sd}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Servicio} & \textbf{Anunciante} & \textbf{Propósito} \\
+    \midrule
+    \texttt{\_pct-seek.\_tcp}  & ISLAND  & Intención de unión \\
+    \texttt{\_pct-ctrl.\_tcp}  & ROOT, BRIDGE, LEAF & Control operativo \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Máquinas de estado}
+\label{sec:maquinas-estado}
+
+Estados radio: \texttt{R\_BOOT}, \texttt{R\_GO\_READY}, \texttt{R\_GO\_UPSTREAM}, \texttt{R\_ISLAND\_SEEK}. Roles lógicos: ISLAND, ROOT, BRIDGE, LEAF. Transición crítica: pérdida upstream $\rightarrow$ ISLAND\_SEEK $\rightarrow$ re-JOIN $\rightarrow$ GO\_UPSTREAM.
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-analisis-diseno}
+
+El diseño de PCT separa bootstrap (L1), vecindad confiable (L2) y reenvío lógico (L3), con dos objetos de red complementarios: STA para el padre y GO P2P para hijos. Las decisiones normativas prohiben atajos (connect P2P, UDP crítico, mezcla control/datos) que comprometan robustez en Android.

@@ -1,0 +1,85 @@
+% =============================================================================
+% Borrador tesis PCT — reemplazar preámbulo con plantilla UAN cuando esté lista
+% =============================================================================
+\documentclass[12pt,a4paper,openany]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{left=3cm, right=2.5cm, top=3cm, bottom=2.5cm}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=green!50!black,
+  urlcolor=blue!70!black,
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{green!40!black},
+}
+
+% --- Metadatos (ajustar con plantilla oficial) ---
+\newcommand{\tesisTitulo}{Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional}
+\newcommand{\tesisAutorA}{Juan Carlos Clavijo Triviño}
+\newcommand{\tesisAutorB}{Brandon Stiven Ganzo Murcia}
+\newcommand{\tesisUniversidad}{Universidad Antonio Nariño}
+\newcommand{\tesisPrograma}{Ingeniería de Sistemas}
+\newcommand{\tesisCiudad}{Bogotá D.C.}
+\newcommand{\tesisAno}{2026}
+
+\begin{document}
+
+% --- Portada provisional ---
+\begin{titlepage}
+  \centering
+  {\Large \tesisUniversidad\par}
+  \vspace{0.5cm}
+  {\large \tesisPrograma\par}
+  \vspace{2cm}
+  {\bfseries\LARGE \tesisTitulo\par}
+  \vspace{1.5cm}
+  {\large Protocolo de Control Topológico (PCT)\par}
+  \vspace{2cm}
+  {\large \tesisAutorA\\ \tesisAutorB\par}
+  \vfill
+  {\large \tesisCiudad\\ \tesisAno\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\cleardoublepage
+
+\pagenumbering{arabic}
+
+% --- Capítulos (un archivo por capítulo) ---
+\include{capitulos/01-introduccion}
+\include{capitulos/02-marco-teorico}
+\include{capitulos/03-marco-referencial}
+\include{capitulos/04-metodologia}
+\include{capitulos/05-analisis-diseno}
+\include{capitulos/06-desarrollo-implementacion}
+\include{capitulos/07-pruebas-resultados}
+\include{capitulos/08-conclusiones}
+
+\bibliographystyle{plain}
+\bibliography{referencias/bibliografia}
+
+\end{document}

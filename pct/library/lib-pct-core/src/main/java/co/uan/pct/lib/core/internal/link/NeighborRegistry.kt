@@ -6,6 +6,7 @@ import co.uan.pct.lib.core.api.NeighborIface
 import co.uan.pct.lib.core.api.NeighborSnapshot
 import co.uan.pct.lib.core.internal.tcp.PctControlSocket
 import co.uan.pct.lib.core.internal.tcp.PctDataSocket
+import co.uan.pct.lib.core.internal.util.PctNetworkHelper
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -30,15 +31,27 @@ internal class NeighborRegistry {
     private val byIp = LinkedHashMap<String, String>()
 
     suspend fun upsert(record: NeighborRecord): NeighborRecord = mutex.withLock {
+        byNid[record.neighborNid]?.let { old ->
+            if (old.ctrlSocket !== record.ctrlSocket) {
+                runCatching { old.ctrlSocket?.close() }
+            }
+            if (old.dataSocket !== record.dataSocket) {
+                runCatching { old.dataSocket?.close() }
+            }
+        }
+        record.localIp = PctNetworkHelper.normalizeHost(record.localIp)
         byNid[record.neighborNid] = record
-        byIp[record.localIp] = record.neighborNid
+        if (record.localIp.isNotBlank()) {
+            byIp[record.localIp] = record.neighborNid
+        }
         record
     }
 
     suspend fun get(nid: String): NeighborRecord? = mutex.withLock { byNid[nid] }
 
     suspend fun getByIp(ip: String): NeighborRecord? = mutex.withLock {
-        byIp[ip]?.let { byNid[it] }
+        val key = PctNetworkHelper.normalizeHost(ip)
+        byIp[key]?.let { byNid[it] }
     }
 
     suspend fun upstream(): NeighborRecord? = mutex.withLock {

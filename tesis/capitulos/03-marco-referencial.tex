@@ -1,0 +1,105 @@
+\chapter{Marco referencial y antecedentes}
+\label{cap:marco-referencial}
+
+\section{Antecedentes del proyecto}
+\label{sec:antecedentes}
+
+El presente trabajo de grado se desarrolla en la Universidad Antonio Nariño (UAN) como continuación del anteproyecto titulado \emph{Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional}. El anteproyecto estableció el planteamiento, objetivos preliminares y alcance; este documento profundiza en diseño formal, implementación y validación experimental.
+
+Los autores ---Juan Carlos Clavijo Triviño y Brandon Stiven Ganzo Murcia--- dividieron responsabilidades según la arquitectura del sistema: conectividad Wi-Fi (GO, DNS-SD, STA, plano TCP) y enrutamiento/topología (tablas, heartbeats, reenvío).
+
+\section{Prototipo EXP-01 (proto-exp01-gostat)}
+\label{sec:exp01}
+
+Como antecedente de implementación se desarrolló el prototipo experimental EXP-01, documentado en \texttt{docs/prototype/proto-exp01-gostat/}. Este prototipo demostró en laboratorio:
+
+\begin{itemize}
+  \item Formación de grupo P2P GO en dos dispositivos Android independientes.
+  \item Descubrimiento DNS-SD del servicio \texttt{\_pct-ctrl} con parseo de TXT.
+  \item Asociación STA legacy del hijo al SoftAP del padre.
+  \item Coexistencia GO propio + STA upstream (hipótesis H1).
+\end{itemize}
+
+EXP-01 identificó restricciones operativas críticas: el buscador no debe mantener GO activo durante el escaneo DNS-SD; y la identidad de hijos no debe depender de \texttt{clientList} MAC cuando exista handshake formal.
+
+\section{Evolución hacia lib-pct-core}
+\label{sec:evolucion-core}
+
+El prototipo EXP-01 se refactorizó en la biblioteca Maven \texttt{co.uan.pct:core} (\texttt{pct/library/lib-pct-core}), con API pública \texttt{PctNode}:
+
+\begin{lstlisting}[language=Java,caption={API pública PCT (Kotlin)},label={lst:api-pct}]
+val pct = PctCore.create()
+pct.init(context, PctConfig.DEFAULT)
+pct.start()  // bootstrap: scan -> join | root
+pct.topology.collect { ... }
+pct.sendUser(destinationNid, payload)
+pct.close()
+\end{lstlisting}
+
+La biblioteca concentra bootstrap automático, teardown P2P anti-zombi al cerrar la aplicación, y observables (\texttt{StateFlow}) de fase, topología, vecinos y rutas.
+
+\section{Requisitos funcionales}
+\label{sec:requisitos-funcionales}
+
+La Tabla~\ref{tab:rf} resume los requisitos funcionales trazables (RF). Los marcados \emph{Must} son obligatorios para la versión de grado.
+
+\begin{longtable}{@{}clp{7cm}@{}}
+  \caption{Requisitos funcionales PCT}
+  \label{tab:rf} \\
+  \toprule
+  \textbf{ID} & \textbf{Pri.} & \textbf{Descripción} \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \textbf{ID} & \textbf{Pri.} & \textbf{Descripción} \\
+  \midrule
+  \endhead
+  RF-01 & Must & Identidad UUID única por nodo \\
+  RF-02 & Must & Arranque homogéneo como P2P GO \\
+  RF-03 & Must & Prohibición de \texttt{connect()} para topología \\
+  RF-04 & Must & Enlace upstream STA legacy al padre \\
+  RF-05 & Must & Anuncio DNS-SD en GO \\
+  RF-06 & Must & Unión simétrica (\texttt{\_pct-seek} / \texttt{JOIN\_OFFER}) \\
+  RF-07 & Must & Handshake TCP post-asociación (HELLO + JOIN\_COMMIT) \\
+  RF-08 & Must & Tabla de rutas local por \texttt{node\_id} \\
+  RF-09 & Must & Prevención de ciclos (\texttt{path\_trace}, \texttt{hop\_limit}) \\
+  RF-10 & Must & Heartbeats PING/PONG \\
+  RF-11 & Must & Detección de fallo y NODE\_DOWN \\
+  RF-12 & Must & Reconfiguración sin reinicio global \\
+  RF-13 & Should & Multisalto $\geq$ 3 nodos \\
+  RF-14 & Should & Unión tardía sin reiniciar red existente \\
+  RF-15 & Should & Continuidad \texttt{session\_epoch} \\
+  RF-16 & Could & DAG lógico multipath \\
+  RF-17 & Won't & Cifrado E2E (v1) \\
+  RF-18 & Won't & QoS (v1) \\
+  \bottomrule
+\end{longtable}
+
+\section{Requisitos no funcionales}
+\label{sec:rnf}
+
+\begin{itemize}
+  \item[RNF-01] Plataforma mínima Android~12 (API~31).
+  \item[RNF-02] Wi-Fi Direct mandatorio.
+  \item[RNF-03] RAM mínima 2~GB.
+  \item[RNF-04] Profundidad máxima 7 saltos.
+  \item[RNF-05] Reconexión objetivo $\leq$ 15~s.
+  \item[RNF-06] Puerto control TCP 8765 (configurable).
+  \item[RNF-07] Codificación wire binaria big-endian.
+  \item[RNF-08--09] Payload TCP $\leq$ 1400~B; mensaje usuario $\leq$ 1024~B.
+\end{itemize}
+
+\section{Restricciones de plataforma Android}
+\label{sec:restricciones-android}
+
+Android~12+ impone permisos \texttt{NEARBY\_WIFI\_DEVICES} (API~33+) y restricciones de descubrimiento P2P concurrente con GO activo. No es posible modificar tramas 802.11 ni implementar NAT multisalto en kernel sin \emph{root}. PCT opera íntegramente en espacio de usuario mediante \texttt{Network.bindSocket()} para seleccionar la interfaz STA upstream frente al GO propio.
+
+\section{Perfiles de hardware}
+\label{sec:perfiles-hardware}
+
+Los dispositivos de laboratorio se clasifican en perfiles $\alpha$, $\beta$, $\gamma$ según capacidad dual GO+STA concurrente, RAM y batería. El perfil mínimo $\alpha$ exige verificación de hipótesis H1 (GO y STA simultáneos) antes de continuar experimentos multisalto.
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-marco-referencial}
+
+El marco referencial vincula el anteproyecto, el prototipo EXP-01 y la biblioteca \texttt{lib-pct-core} con un conjunto trazable de requisitos y restricciones Android que condicionan todas las decisiones de diseño documentadas en el Capítulo~\ref{cap:analisis-diseno}.

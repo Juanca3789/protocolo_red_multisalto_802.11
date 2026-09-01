@@ -1,0 +1,33 @@
+\begin{thebibliography}{1}
+
+\bibitem{rfc6763}
+S.~Cheshire and E.~Kroh.
+\newblock {RFC 6763}: Dns-based service discovery.
+\newblock \url{https://www.rfc-editor.org/rfc/rfc6763}, 2013.
+
+\bibitem{rfc8966}
+J.~Chroboczek.
+\newblock {RFC 8966}: The babel routing protocol.
+\newblock \url{https://www.rfc-editor.org/rfc/rfc8966}, 2021.
+
+\bibitem{openwrt_batman}
+{OpenWrt Project}.
+\newblock B.a.t.m.a.n. advanced documentation.
+\newblock \url{https://www.openwrt.org/docs/techref/batman}.
+
+\bibitem{rfc3561}
+C.~Perkins, E.~Belding-Royer, and S.~Das.
+\newblock {RFC 3561}: Ad hoc on-demand distance vector (aodv) routing.
+\newblock \url{https://www.rfc-editor.org/rfc/rfc3561}, 2003.
+
+\bibitem{perkins2003adhoc}
+Charles~E. Perkins.
+\newblock {\em Ad Hoc Networking}.
+\newblock Addison-Wesley, 2003.
+
+\bibitem{wifidirect2010}
+{Wi-Fi Alliance}.
+\newblock Wi-fi direct specification.
+\newblock Technical report, Wi-Fi Alliance, 2010.
+
+\end{thebibliography}

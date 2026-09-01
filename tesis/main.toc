@@ -1,0 +1,94 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {chapter}{\numberline {1}Introducción}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Planteamiento del problema}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Justificación}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Objetivo general}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Objetivos específicos}{2}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Alcance y limitaciones}{2}{section.1.5}%
+\contentsline {subsection}{\numberline {1.5.1}Alcance}{2}{subsection.1.5.1}%
+\contentsline {subsection}{\numberline {1.5.2}Limitaciones}{2}{subsection.1.5.2}%
+\contentsline {section}{\numberline {1.6}Estructura del documento}{3}{section.1.6}%
+\contentsline {chapter}{\numberline {2}Marco teórico y estado del arte}{4}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Redes \emph {ad hoc} y multisalto}{4}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Redes mesh en dispositivos móviles}{4}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Wi-Fi Direct y SoftAP}{4}{section.2.3}%
+\contentsline {section}{\numberline {2.4}DNS-SD y descubrimiento de servicios}{5}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Modelo OSI como referencia conceptual}{5}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Estado del arte y posicionamiento de PCT}{5}{section.2.6}%
+\contentsline {section}{\numberline {2.7}Síntesis del capítulo}{5}{section.2.7}%
+\contentsline {chapter}{\numberline {3}Marco referencial y antecedentes}{6}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Antecedentes del proyecto}{6}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Prototipo EXP-01 (proto-exp01-gostat)}{6}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Evolución hacia lib-pct-core}{6}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Requisitos funcionales}{7}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Requisitos no funcionales}{7}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Restricciones de plataforma Android}{8}{section.3.6}%
+\contentsline {section}{\numberline {3.7}Perfiles de hardware}{8}{section.3.7}%
+\contentsline {section}{\numberline {3.8}Síntesis del capítulo}{8}{section.3.8}%
+\contentsline {chapter}{\numberline {4}Metodología}{9}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Tipo de investigación}{9}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Enfoque incremental}{9}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Fases de implementación}{9}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Matriz de validación experimental}{10}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Hipótesis}{10}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Experimentos}{10}{subsection.4.4.2}%
+\contentsline {section}{\numberline {4.5}Entorno de laboratorio}{10}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Técnicas de recolección de datos}{10}{section.4.6}%
+\contentsline {section}{\numberline {4.7}Síntesis del capítulo}{11}{section.4.7}%
+\contentsline {chapter}{\numberline {5}Análisis y diseño del sistema}{12}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Arquitectura general}{12}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Modo de conexión: GO homogéneo + STA legacy}{12}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Principio rector}{12}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Dos interfaces lógicas en un nodo BRIDGE}{12}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}Secuencia bootstrap miembro}{13}{subsection.5.2.3}%
+\contentsline {section}{\numberline {5.3}Capa de enlace (L2)}{13}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Dos canales TCP por vecino}{13}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}NeighborRegistry}{13}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Secuencia L2}{13}{subsection.5.3.3}%
+\contentsline {section}{\numberline {5.4}Capa de red (L3)}{14}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}RoutingEntry}{14}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Fusión TOPO\_UPDATE}{14}{subsection.5.4.2}%
+\contentsline {subsection}{\numberline {5.4.3}ForwardWorker}{14}{subsection.5.4.3}%
+\contentsline {section}{\numberline {5.5}Mensajes dirigidos y difusión}{14}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Unicast}{14}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Difusión acotada}{14}{subsection.5.5.2}%
+\contentsline {section}{\numberline {5.6}Desconexiones en BRIDGE}{14}{section.5.6}%
+\contentsline {section}{\numberline {5.7}Unión de árboles independientes}{15}{section.5.7}%
+\contentsline {section}{\numberline {5.8}Servicios DNS-SD}{15}{section.5.8}%
+\contentsline {section}{\numberline {5.9}Máquinas de estado}{15}{section.5.9}%
+\contentsline {section}{\numberline {5.10}Síntesis del capítulo}{15}{section.5.10}%
+\contentsline {chapter}{\numberline {6}Desarrollo e implementación}{16}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Stack tecnológico}{16}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Estructura de lib-pct-core}{16}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Capa física y bootstrap (L1)}{16}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}P2pChannelHolder}{16}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}GoRepository}{17}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}LegacyStaRepository}{17}{subsection.6.3.3}%
+\contentsline {subsection}{\numberline {6.3.4}DnsSdRepository}{17}{subsection.6.3.4}%
+\contentsline {subsection}{\numberline {6.3.5}Bootstrap automático (PctNodeImpl)}{17}{subsection.6.3.5}%
+\contentsline {section}{\numberline {6.4}Capa de enlace (L2)}{17}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}PctFrameCodec}{17}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}PctLinkSocket}{17}{subsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.4.3}LinkOrchestrator}{17}{subsection.6.4.3}%
+\contentsline {subsection}{\numberline {6.4.4}Identidad UUID (PctNid)}{18}{subsection.6.4.4}%
+\contentsline {section}{\numberline {6.5}Capa de red (L3)}{18}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}RouteOrchestrator}{18}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}ForwardWorker y sendUser}{18}{subsection.6.5.2}%
+\contentsline {section}{\numberline {6.6}Aplicación demo PCT Mesh}{18}{section.6.6}%
+\contentsline {section}{\numberline {6.7}Convenciones de empaquetado UAN}{18}{section.6.7}%
+\contentsline {section}{\numberline {6.8}Síntesis del capítulo}{18}{section.6.8}%
+\contentsline {chapter}{\numberline {7}Pruebas, validación y resultados}{19}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Plan de pruebas}{19}{section.7.1}%
+\contentsline {section}{\numberline {7.2}EXP-01: Interconexión dos GO}{19}{section.7.2}%
+\contentsline {section}{\numberline {7.3}EXP-03: Cadena tres nodos}{20}{section.7.3}%
+\contentsline {section}{\numberline {7.4}EXP-04 y EXP-05: Unión tardía y fallo BRIDGE}{20}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Pruebas unitarias}{20}{section.7.5}%
+\contentsline {section}{\numberline {7.6}Análisis de logs}{20}{section.7.6}%
+\contentsline {section}{\numberline {7.7}Discusión}{20}{section.7.7}%
+\contentsline {section}{\numberline {7.8}Síntesis del capítulo}{20}{section.7.8}%
+\contentsline {chapter}{\numberline {8}Conclusiones y trabajo futuro}{21}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Conclusiones}{21}{section.8.1}%
+\contentsline {section}{\numberline {8.2}Cumplimiento de objetivos}{21}{section.8.2}%
+\contentsline {section}{\numberline {8.3}Limitaciones del trabajo}{21}{section.8.3}%
+\contentsline {section}{\numberline {8.4}Trabajo futuro}{22}{section.8.4}%
+\contentsline {section}{\numberline {8.5}Cierre}{22}{section.8.5}%

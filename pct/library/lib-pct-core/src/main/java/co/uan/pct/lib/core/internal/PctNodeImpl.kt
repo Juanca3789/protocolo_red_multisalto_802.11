@@ -2,6 +2,9 @@ package co.uan.pct.lib.core.internal
 
 import android.app.Application
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.util.Log
 import co.uan.pct.lib.core.api.NodePhase
 import co.uan.pct.lib.core.api.NeighborSnapshot
 import co.uan.pct.lib.core.api.PctConfig
@@ -18,10 +21,13 @@ import co.uan.pct.lib.core.internal.p2p.DnsSdRepository
 import co.uan.pct.lib.core.internal.p2p.GoRepository
 import co.uan.pct.lib.core.internal.p2p.P2pChannelHolder
 import co.uan.pct.lib.core.internal.p2p.model.GoState
+import co.uan.pct.lib.core.internal.p2p.model.PctCtrlRecord
 import co.uan.pct.lib.core.internal.route.RouteOrchestrator
 import co.uan.pct.lib.core.internal.sta.LegacyStaRepository
 import co.uan.pct.lib.core.internal.sta.StaState
 import co.uan.pct.lib.core.internal.util.ParentSelector
+import co.uan.pct.lib.core.internal.util.PctNetworkHelper
+import co.uan.pct.lib.core.internal.util.PctNid
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -36,11 +42,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 internal class PctNodeImpl : PctNode {
+
+    companion object {
+        private const val LOG_TAG = "PctMesh"
+    }
 
     private var scope: CoroutineScope? = null
     private var config: PctConfig = PctConfig()
@@ -49,6 +60,7 @@ internal class PctNodeImpl : PctNode {
     private var go: GoRepository? = null
     private var dns: DnsSdRepository? = null
     private var sta: LegacyStaRepository? = null
+    private var connectivityManager: ConnectivityManager? = null
     private var registry: NeighborRegistry? = null
     private var routeOrch: RouteOrchestrator? = null
     private var link: LinkOrchestrator? = null
@@ -59,6 +71,7 @@ internal class PctNodeImpl : PctNode {
 
     private var role: String = "ISLAND"
     private var parentNode: TopologyNode? = null
+    private var parentStaRecord: PctCtrlRecord? = null
     private var bootstrapJob: Job? = null
     private var currentAction: String = "Sin iniciar"
 
@@ -106,6 +119,7 @@ internal class PctNodeImpl : PctNode {
         go = GoRepository(holder)
         dns = DnsSdRepository(holder).also { it.setLocalNodeId(id) }
         sta = LegacyStaRepository(app)
+        connectivityManager = app.getSystemService(ConnectivityManager::class.java)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
         val reg = NeighborRegistry()
@@ -126,24 +140,20 @@ internal class PctNodeImpl : PctNode {
             config = config,
             registry = reg,
             routes = routeOrchInstance,
+            connectivityManager = connectivityManager!!,
             selfNid = { nodeId },
             selfRole = { role },
             selfHop = { currentHop() },
             parentNid = { parentNode?.nodeId },
             log = { emitLog(it) },
-            onTopologyChanged = { publishTopology() },
+            onTopologyChanged = { scope?.launch { publishTopology() } },
         )
 
         scope?.launch {
             dns?.events?.collect { msg -> emitLog("DNS-SD: $msg") }
         }
         scope?.launch { collectDebug() }
-        scope?.launch {
-            routeOrchInstance.neighbors.collect { _neighbors.value = it }
-        }
-        scope?.launch {
-            routeOrchInstance.routes.collect { _routes.value = it }
-        }
+        scope?.launch { collectTopologyReactively(routeOrchInstance) }
 
         setAction("Inicializado; esperando start() (permisos)")
         publishTopology()
@@ -201,12 +211,14 @@ internal class PctNodeImpl : PctNode {
         go = null
         dns = null
         sta = null
+        connectivityManager = null
 
         scope?.cancel()
         scope = null
         initialized.set(false)
         role = "ISLAND"
         parentNode = null
+        parentStaRecord = null
         _neighbors.value = NeighborSnapshot()
         _routes.value = RouteSnapshot()
         _debug.value = PctDebugSnapshot(action = "Cerrado")
@@ -224,6 +236,19 @@ internal class PctNodeImpl : PctNode {
         role == "ROOT" -> 0
         parentNode != null -> parentNode!!.hop + 1
         else -> 0
+    }
+
+    private suspend fun collectTopologyReactively(routeOrchInstance: RouteOrchestrator) {
+        combine(
+            routeOrchInstance.neighbors,
+            routeOrchInstance.routes,
+        ) { neighbors, routes ->
+            neighbors to routes
+        }.collect { (neighbors, routes) ->
+            _neighbors.value = neighbors
+            _routes.value = routes
+            publishTopology()
+        }
     }
 
     private suspend fun collectDebug() {
@@ -361,7 +386,14 @@ internal class PctNodeImpl : PctNode {
             dnsRepo.discoveryFinished.first()
         } ?: emitLog("Timeout fin escaneo; uso candidatos actuales")
 
-        val candidates = dnsRepo.parentCandidates.value
+        var candidates = dnsRepo.parentCandidates.value
+        if (candidates.isEmpty() && dnsRepo.diagnostics.value.peerCount > 0) {
+            emitLog("Peers sin _pct-ctrl; esperando anuncio del padre (10s)…")
+            withTimeoutOrNull(10_000L) {
+                dnsRepo.parentCandidates.first { it.isNotEmpty() }
+            }
+            candidates = dnsRepo.parentCandidates.value
+        }
         emitLog(
             "Scan fin: peers=${dnsRepo.diagnostics.value.peerCount} " +
                 "pct=${dnsRepo.diagnostics.value.pctCtrlSeen} " +
@@ -373,48 +405,93 @@ internal class PctNodeImpl : PctNode {
         publishTopology()
 
         if (best != null) {
-            setPhase(NodePhase.JOINING)
-            setAction(
-                "JOINING: STA legacy → ${best.record.goSsid} " +
-                    "(padre ${best.record.nid.take(8)}… role=${best.record.role})",
-            )
-            dnsRepo.selectParent(best.deviceAddress)
-            dnsRepo.stopDiscovery()
-            staRepo.connectIfSupported(best.record)
-
-            val connected = withTimeoutOrNull(config.bootstrapTimeoutMs) {
-                staRepo.staState.first { it is StaState.Connected || it is StaState.Error }
+            var chosen = best
+            if (!PctNid.isFull(chosen.record.nid)) {
+                val parentAddr = chosen.deviceAddress
+                emitLog(
+                    "Padre ${chosen.deviceName}: nid prefijo DNS=${chosen.record.nid}; " +
+                        "esperando TXT (4s)…",
+                )
+                withTimeoutOrNull(4_000L) {
+                    dnsRepo.parentCandidates.first { list ->
+                        list.any {
+                            it.deviceAddress == parentAddr && PctNid.isFull(it.record.nid)
+                        }
+                    }
+                }
+                chosen = ParentSelector.best(dnsRepo.parentCandidates.value, nodeId) ?: chosen
+                if (PctNid.isFull(chosen.record.nid)) {
+                    emitLog("TXT OK: nid completo ${chosen.record.nid.take(8)}…")
+                } else {
+                    emitLog(
+                        "Sin TXT completo; nid se resolverá en HELLO L2 " +
+                            "(prefijo ${chosen.record.nid})",
+                    )
+                }
             }
-            when (connected) {
-                is StaState.Connected -> {
-                    parentNode = TopologyNode(
-                        nodeId = best.record.nid,
-                        role = best.record.role,
-                        hop = best.record.hop,
-                        goSsid = best.record.goSsid,
-                    )
-                    publishTopology()
-                    emitLog("STA OK ssid=${connected.ssid}")
-                    link?.onStaConnected(
-                        parentNidValue = best.record.nid,
-                        parentRole = best.record.role,
-                        parentHop = best.record.hop,
-                        network = staRepo.activeNetwork,
-                    )
-                    if (config.autoActivateGoAfterSta) {
+            setPhase(NodePhase.JOINING)
+            dnsRepo.selectParent(chosen.deviceAddress)
+            dnsRepo.stopDiscovery()
+            parentStaRecord = chosen.record
+            parentNode = TopologyNode(
+                nodeId = chosen.record.nid,
+                role = chosen.record.role,
+                hop = chosen.record.hop,
+                goSsid = chosen.record.goSsid,
+            )
+            publishTopology()
+
+            if (config.autoActivateGoAfterSta) {
+                setAction(
+                    "JOINING: STA → GO BRIDGE (padre ${chosen.record.nid.take(8)}…)",
+                )
+                staRepo.connectIfSupported(chosen.record)
+                val connected = withTimeoutOrNull(config.bootstrapTimeoutMs) {
+                    staRepo.staState.first { it is StaState.Connected || it is StaState.Error }
+                }
+                when (connected) {
+                    is StaState.Connected -> {
+                        emitLog("STA OK ssid=${connected.ssid}")
                         activateAsMember()
-                    } else {
+                    }
+                    is StaState.Error -> {
+                        emitError("STA falló: ${connected.message}; fallback ROOT")
+                        startAsRoot()
+                    }
+                    else -> {
+                        emitError("STA timeout ${config.bootstrapTimeoutMs}ms; fallback ROOT")
+                        startAsRoot()
+                    }
+                }
+            } else {
+                setAction(
+                    "JOINING: STA legacy → ${chosen.record.goSsid} " +
+                        "(padre ${chosen.record.nid.take(8)}… role=${chosen.record.role})",
+                )
+                staRepo.connectIfSupported(chosen.record)
+                val connected = withTimeoutOrNull(config.bootstrapTimeoutMs) {
+                    staRepo.staState.first { it is StaState.Connected || it is StaState.Error }
+                }
+                when (connected) {
+                    is StaState.Connected -> {
+                        emitLog("STA OK ssid=${connected.ssid}")
+                        link?.onStaConnected(
+                            parentNidValue = chosen.record.nid,
+                            parentRole = chosen.record.role,
+                            parentHop = chosen.record.hop,
+                            network = staRepo.activeNetwork,
+                        )
                         setAction("STA OK; auto GO desactivado — queda en JOINING")
                         setPhase(NodePhase.JOINING)
                     }
-                }
-                is StaState.Error -> {
-                    emitError("STA falló: ${connected.message}; fallback ROOT")
-                    startAsRoot()
-                }
-                else -> {
-                    emitError("STA timeout ${config.bootstrapTimeoutMs}ms; fallback ROOT")
-                    startAsRoot()
+                    is StaState.Error -> {
+                        emitError("STA falló: ${connected.message}; fallback ROOT")
+                        startAsRoot()
+                    }
+                    else -> {
+                        emitError("STA timeout ${config.bootstrapTimeoutMs}ms; fallback ROOT")
+                        startAsRoot()
+                    }
                 }
             }
         } else {
@@ -428,7 +505,7 @@ internal class PctNodeImpl : PctNode {
         role = "BRIDGE"
         setPhase(NodePhase.MEMBER)
         publishTopology()
-        setAction("MEMBER: createGroup() BRIDGE (STA ya al padre) → anunciar")
+        setAction("MEMBER: createGroup() BRIDGE → L2 TCP al padre")
 
         when (val current = goRepo.goState.value) {
             is GoState.Ready -> {
@@ -474,6 +551,7 @@ internal class PctNodeImpl : PctNode {
         dnsRepo.stopDiscovery()
         role = "ROOT"
         parentNode = null
+        parentStaRecord = null
         setPhase(NodePhase.ROOT)
         publishTopology()
         setAction("ROOT: createGroup() → anunciar _pct-ctrl")
@@ -533,7 +611,10 @@ internal class PctNodeImpl : PctNode {
             role = role,
         )
         emitLog("Anuncio registrado role=$role ssid=${ready.ssid}")
-        link?.onGoReady()
+        link?.onGoReady(listenNetwork = null)
+        if (role != "ROOT") {
+            connectUpstreamAfterGoReady()
+        }
         publishTopology()
         setPhase(if (role == "ROOT") NodePhase.ROOT else NodePhase.MEMBER)
         setAction(
@@ -545,7 +626,48 @@ internal class PctNodeImpl : PctNode {
         )
     }
 
+    /** Tras createGroup, la STA al padre suele caer: re-asociar una vez y conectar L2 por TCP. */
+    private suspend fun staForUpstream(): Network? {
+        val staRepo = sta ?: return null
+        val record = parentStaRecord
+        if (record != null &&
+            (staRepo.activeNetwork == null || staRepo.staState.value !is StaState.Connected)
+        ) {
+            emitLog("Re-asociando STA a ${record.goSsid}…")
+            staRepo.connectIfSupported(record)
+            withTimeoutOrNull(20_000L) {
+                staRepo.staState.first { it is StaState.Connected || it is StaState.Error }
+            }
+        }
+        return staRepo.activeNetwork?.also {
+            emitLog("Red STA net=$it para L2 upstream")
+        } ?: run {
+            emitError("Sin red STA al padre")
+            null
+        }
+    }
+
+    private fun connectUpstreamAfterGoReady() {
+        val parent = parentNode ?: return
+        val l = link ?: return
+        scope?.launch {
+            val network = staForUpstream() ?: return@launch
+            emitLog("L2 TCP → ${PctNetworkHelper.DEFAULT_P2P_GW}:${config.ctrlPort} padre ${parent.nodeId.take(8)}…")
+            l.onStaConnected(
+                parentNidValue = parent.nodeId,
+                parentRole = parent.role,
+                parentHop = parent.hop,
+                network = network,
+            )
+        }
+    }
+
     private fun publishTopology() {
+        val neighborSnap = routeOrch?.neighbors?.value ?: _neighbors.value
+        val routeSnap = routeOrch?.routes?.value ?: _routes.value
+        _neighbors.value = neighborSnap
+        _routes.value = routeSnap
+
         val peers = dns?.parentCandidates?.value.orEmpty().map { c ->
             TopologyNode(
                 nodeId = c.record.nid,
@@ -557,7 +679,7 @@ internal class PctNodeImpl : PctNode {
         val hop = currentHop()
         val goSsid = (go?.goState?.value as? GoState.Ready)?.ssid
 
-        val children = _neighbors.value.neighbors
+        val children = neighborSnap.neighbors
             .filter { it.iface == co.uan.pct.lib.core.api.NeighborIface.DOWNSTREAM }
             .map { n ->
                 TopologyNode(
@@ -568,8 +690,16 @@ internal class PctNodeImpl : PctNode {
                 )
             }
 
-        val upstream = _neighbors.value.neighbors
+        val upstream = neighborSnap.neighbors
             .firstOrNull { it.iface == co.uan.pct.lib.core.api.NeighborIface.UPSTREAM }
+        if (upstream != null && PctNid.isFull(upstream.neighborNid)) {
+            parentNode = TopologyNode(
+                nodeId = upstream.neighborNid,
+                role = upstream.role.ifBlank { parentNode?.role ?: "ROOT" },
+                hop = upstream.hop,
+                goSsid = parentNode?.goSsid,
+            )
+        }
         val parentFromL2 = upstream?.let {
             TopologyNode(
                 nodeId = it.neighborNid,
@@ -602,10 +732,12 @@ internal class PctNodeImpl : PctNode {
     }
 
     private fun emitLog(message: String) {
+        Log.i(LOG_TAG, message)
         _events.tryEmit(PctEvent.Log(message))
     }
 
     private fun emitError(message: String) {
+        Log.e(LOG_TAG, message)
         _events.tryEmit(PctEvent.Error(message))
     }
 }

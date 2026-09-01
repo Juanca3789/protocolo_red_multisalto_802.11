@@ -12,6 +12,7 @@ import co.uan.pct.lib.core.internal.p2p.model.PctCtrlCandidate
 import co.uan.pct.lib.core.internal.p2p.model.PctCtrlRecord
 import co.uan.pct.lib.core.internal.util.ParentSelector
 import co.uan.pct.lib.core.internal.util.PctCtrlRecordFactory
+import co.uan.pct.lib.core.internal.util.PctNid
 import co.uan.pct.lib.core.internal.util.PctInstanceCodec
 import co.uan.pct.lib.core.internal.util.PctTxtParser
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -590,8 +591,14 @@ class DnsSdRepository(
             emitEvent("Candidato ignorado (propio nodo) de $deviceName")
             return
         }
+        val previous = candidateMap[deviceAddress]?.record
+        val mergedRecord = when {
+            previous == null -> record
+            else -> PctCtrlRecordFactory.merge(previous, record)
+        }
+        val finalCandidate = candidate.copy(record = mergedRecord)
         val isNew = !candidateMap.containsKey(deviceAddress)
-        candidateMap[deviceAddress] = candidate
+        candidateMap[deviceAddress] = finalCandidate
         val ranked = ParentSelector.rank(candidateMap.values.toList(), localNodeId)
         _parentCandidates.value = ranked
         if (_selectedParent.value == null) {
@@ -603,10 +610,15 @@ class DnsSdRepository(
                 hint = "${ranked.size} candidato(s); selecciona padre",
             )
         }
+        val nidLabel = if (PctNid.isFull(mergedRecord.nid)) {
+            "${mergedRecord.nid.take(8)}… (completo)"
+        } else {
+            "${mergedRecord.nid} (prefijo DNS; falta TXT/L2)"
+        }
         emitEvent(
             "Candidato [$source] #${ranked.size}: ${deviceName} " +
-                "nid=${record.nid.take(8)}… hop=${record.hop} role=${record.role} " +
-                "ssid=${record.goSsid}",
+                "nid=$nidLabel hop=${mergedRecord.hop} role=${mergedRecord.role} " +
+                "ssid=${mergedRecord.goSsid}",
         )
         if (isNew && ranked.size == 1) {
             scheduleCandidateSettle()

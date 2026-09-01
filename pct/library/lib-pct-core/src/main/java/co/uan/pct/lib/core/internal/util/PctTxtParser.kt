@@ -18,7 +18,9 @@ object PctTxtParser {
         val normalized = normalizeTxtRecord(txtRecord)
         if (normalized.isEmpty()) return null
 
-        val nid = pick(normalized, "nid", "n") ?: return null
+        val nidRaw = pick(normalized, "nid", "n") ?: return null
+        if (!PctNid.isFull(nidRaw) && !PctNid.isPrefix(nidRaw)) return null
+        val nid = PctNid.normalize(nidRaw)
         val goSsid = pick(normalized, "go_ssid", "gs", "s", "ssid") ?: return null
         val goPsk = pick(normalized, "go_psk", "gp", "p", "psk") ?: ""
         val ctrlPort = pick(normalized, "cp", "c", "port", "ctrl_port")
