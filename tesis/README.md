@@ -1,47 +1,30 @@
-# Monografía PCT — LaTeX
+# Monografía PCT — LaTeX (plantilla UAN)
 
-## Anteproyecto (ya escrito — NO duplicar)
-
-**`docs/monography/pre_project/AnteProyecto-Final.pdf`**
-
-Contiene (aprox. 22 páginas):
-
-| Sección | Contenido |
-|---|---|
-| Resumen / Abstract | Palabras clave, resumen EN/ES |
-| Introducción | Contexto post-desastre, estructura documento |
-| **Cap. 1** Planteamiento | 1.1–1.6 completo con citas (Tanenbaum, Akyildiz, etc.) |
-| **Cap. 2** Marco referencia | 2.1 teórico (def. técnicas/no técnicas), 2.2 estado del arte (AODV, OLSR, Meshtastic, Bridgefy, Briar, BitChat, cuadro comparativo), 2.3 legal (Ley 1581, 1341) |
-| **Cap. 3** Metodología | Roles JC/BS, 4 incrementos, validación experimental |
-| Cap. 4 Cronograma | 12 semanas |
-| Cap. 5 Costos | Presupuesto COP |
-| Referencias | Bibliografía completa |
-
-Director: **Elio Higinio Cables Pérez, Ph.D.**
-
-## Continuación (este repo)
-
-**`tesis/pct-monografia.tex`** — solo lo que falta para la monografía de grado:
-
-- Cap. **4 Desarrollo del sistema** (lib-pct-core, L2/L3, app demo)
-- Cap. **5 Resultados obtenidos** (EXP-01.., hallazgos)
-- **Conclusiones**
-- Referencias adicionales de implementación
+**Archivo principal:** `pct-monografia.tex`
 
 ```bash
 cd tesis
+python3 generar_contenido.py   # opcional: regenerar texto del anteproyecto
 pdflatex pct-monografia.tex
 pdflatex pct-monografia.tex
 ```
 
-## Documento final UAN
+Salida: `pct-monografia.pdf`
 
-1. Capítulos 1–3 (y resumen/intro) → **copiar del anteproyecto LaTeX/PDF** sin reescribir.
-2. Capítulos 4–5 + Conclusiones → **`pct-monografia.tex`** (renumerar si la plantilla lo exige).
-3. Cronograma/Costos del anteproyecto → anexos o eliminar en monografía final (según director).
+## Formato
 
-Cuando entregues la plantilla `.tex` UAN, integramos con `\input{}`.
+- Clase `article`, **todo 12 pt** (sin `\chapter` gigante ni `\large`)
+- Encabezados: `\capitulo{}` / `\seccion{}` → negrita 12 pt + `\newpage` donde corresponde
+- Carta, Times (`mathptmx`), doble espacio, sangría 1,25 cm
+
+## Contenido
+
+| Archivo | Origen |
+|---------|--------|
+| `contenido-anteproyecto.tex` | Generado desde `docs/monography/pre_project/AnteProyecto-Final.pdf` |
+| `contenido-desarrollo.tex` | Desarrollo `lib-pct-core` + resultados EXP |
+| `generar_contenido.py` | Script de extracción (pdftotext) |
 
 ## Obsoleto
 
-`capitulos/*.tex` y `main.tex` — borrador genérico anterior; ignorar.
+`main.tex`, `capitulos/*.tex` — no usar.

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.6.24)  1 SEP 2026 11:25
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.6.24)  1 SEP 2026 11:43
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -6,20 +6,19 @@ entering extended mode
 (./pct-monografia.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-03-20>
-(/usr/share/texlive/texmf-dist/tex/latex/base/report.cls
-Document Class: report 2025/01/22 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
 (/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo
 File: size12.clo 2025/01/22 v1.4n Standard LaTeX file (size option)
 )
 \c@part=\count275
-\c@chapter=\count276
-\c@section=\count277
-\c@subsection=\count278
-\c@subsubsection=\count279
-\c@paragraph=\count280
-\c@subparagraph=\count281
-\c@figure=\count282
-\c@table=\count283
+\c@section=\count276
+\c@subsection=\count277
+\c@subsubsection=\count278
+\c@paragraph=\count279
+\c@subparagraph=\count280
+\c@figure=\count281
+\c@table=\count282
 \abovecaptionskip=\skip49
 \belowcaptionskip=\skip50
 \bibindent=\dimen150
@@ -35,7 +34,7 @@ Package: fontenc 2025/07/18 v2.1d Standard LaTeX package
 (/usr/share/texlive/texmf-dist/tex/generic/babel/babel.sty
 Package: babel 2026/04/15 v26.6 The multilingual framework for LuaLaTeX, pdfLaT
 eX and XeLaTeX
-\babel@savecnt=\count284
+\babel@savecnt=\count283
 LaTeX Encoding Info:    Redeclaring text command \ij (encoding OT1) on input li
 ne 2078.
 LaTeX Encoding Info:    Redeclaring text command \IJ (encoding OT1) on input li
@@ -55,7 +54,7 @@ on input line 2111.
 
 (/usr/share/texlive/texmf-dist/tex/generic/babel/txtbabel.def)
 \bbl@readstream=\read2
-\bbl@dirlevel=\count285
+\bbl@dirlevel=\count284
 
 (/usr/share/texlive/texmf-dist/tex/generic/babel/locale/es/babel-spanish.tex)
 Package babel Info: Importing font and identification data for spanish
@@ -64,194 +63,723 @@ Package babel Info: Importing font and identification data for spanish
 (/usr/share/texlive/texmf-dist/tex/generic/babel-spanish/spanish.ldf
 Language: spanish.ldf 2021/05/27 v5.0q Spanish support from the babel system
 \es@quottoks=\toks19
-\es@quotdepth=\count286
+\es@quotdepth=\count285
 Package babel Info: Making " an active character on input line 570.
 Package babel Info: Making . an active character on input line 675.
 Package babel Info: Making < an active character on input line 722.
 Package babel Info: Making > an active character on input line 722.
 ))
 LaTeX Encoding Info:    Redeclaring text command \guillemotleft (encoding OT1) 
-on input line 22.
+on input line 9.
 LaTeX Encoding Info:    Redeclaring text command \guillemotright (encoding OT1)
- on input line 22.
+ on input line 9.
 
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/mathptmx.sty
+Package: mathptmx 2020/03/25 PSNFSS-v9.3 Times w/ Math, improved (SPQR, WaS) 
+LaTeX Font Info:    Redeclaring symbol font `operators' on input line 28.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
+(Font)                  OT1/cmr/m/n --> OT1/ztmcm/m/n on input line 28.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
+(Font)                  OT1/cmr/bx/n --> OT1/ztmcm/m/n on input line 28.
+LaTeX Font Info:    Redeclaring symbol font `letters' on input line 29.
+LaTeX Font Info:    Overwriting symbol font `letters' in version `normal'
+(Font)                  OML/cmm/m/it --> OML/ztmcm/m/it on input line 29.
+LaTeX Font Info:    Overwriting symbol font `letters' in version `bold'
+(Font)                  OML/cmm/b/it --> OML/ztmcm/m/it on input line 29.
+LaTeX Font Info:    Redeclaring symbol font `symbols' on input line 30.
+LaTeX Font Info:    Overwriting symbol font `symbols' in version `normal'
+(Font)                  OMS/cmsy/m/n --> OMS/ztmcm/m/n on input line 30.
+LaTeX Font Info:    Overwriting symbol font `symbols' in version `bold'
+(Font)                  OMS/cmsy/b/n --> OMS/ztmcm/m/n on input line 30.
+LaTeX Font Info:    Redeclaring symbol font `largesymbols' on input line 31.
+LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `normal'
+(Font)                  OMX/cmex/m/n --> OMX/ztmcm/m/n on input line 31.
+LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `bold'
+(Font)                  OMX/cmex/m/n --> OMX/ztmcm/m/n on input line 31.
+\symbold=\mathgroup4
+\symitalic=\mathgroup5
+LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 34.
+LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
+(Font)                  OT1/cmr/bx/n --> OT1/ptm/bx/n on input line 34.
+LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
+(Font)                  OT1/cmr/bx/n --> OT1/ptm/bx/n on input line 34.
+LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 35.
+LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
+(Font)                  OT1/cmr/m/it --> OT1/ptm/m/it on input line 35.
+LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
+(Font)                  OT1/cmr/bx/it --> OT1/ptm/m/it on input line 35.
+LaTeX Info: Redefining \hbar on input line 50.
+)
+(/usr/share/texlive/texmf-dist/tex/latex/setspace/setspace.sty
+Package: setspace 2022/12/04 v6.7b set line spacing
+)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/indentfirst.sty
+Package: indentfirst 2023/07/02 v1.03 Indent first paragraph (DPC)
+)
+(/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
+Package: geometry 2026/03/07 v6.0 Page Geometry
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty
+Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
+\KV@toks@=\toks20
+)
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/ifvtex.sty
+Package: ifvtex 2019/10/25 v1.7 ifvtex legacy package. Use iftex instead.
+
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/iftex.sty
+Package: iftex 2024/12/12 v1.0g TeX engine tests
+))
+\Gm@cnth=\count286
+\Gm@cntv=\count287
+\c@Gm@tempcnt=\count288
+\Gm@bindingoffset=\dimen152
+\Gm@wd@mp=\dimen153
+\Gm@odd@mp=\dimen154
+\Gm@even@mp=\dimen155
+\Gm@layoutwidth=\dimen156
+\Gm@layoutheight=\dimen157
+\Gm@layouthoffset=\dimen158
+\Gm@layoutvoffset=\dimen159
+\Gm@dimlist=\toks21
+)
+(/usr/share/texlive/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty
+Package: fancyhdr 2025/02/07 v5.2 Extensive control of page headers and footers
+
+\f@nch@headwidth=\skip51
+\f@nch@offset@elh=\skip52
+\f@nch@offset@erh=\skip53
+\f@nch@offset@olh=\skip54
+\f@nch@offset@orh=\skip55
+\f@nch@offset@elf=\skip56
+\f@nch@offset@erf=\skip57
+\f@nch@offset@olf=\skip58
+\f@nch@offset@orf=\skip59
+\f@nch@height=\skip60
+\f@nch@footalignment=\skip61
+\f@nch@widthL=\skip62
+\f@nch@widthC=\skip63
+\f@nch@widthR=\skip64
+\@temptokenb=\toks22
+)
+(/usr/share/texlive/texmf-dist/tex/latex/titlesec/titlesec.sty
+Package: titlesec 2025/01/04 v2.17 Sectioning titles
+\ttl@box=\box53
+\beforetitleunit=\skip65
+\aftertitleunit=\skip66
+\ttl@plus=\dimen160
+\ttl@minus=\dimen161
+\ttl@toksa=\toks23
+\titlewidth=\dimen162
+\titlewidthlast=\dimen163
+\titlewidthfirst=\dimen164
+)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/hyperref.sty
+Package: hyperref 2026-04-24 v7.01q Hypertext links for LaTeX
+
+(/usr/share/texlive/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty
+Package: kvsetkeys 2022-10-05 v1.19 Key value parser (HO)
+)
+(/usr/share/texlive/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty
+Package: kvdefinekeys 2019-12-19 v1.6 Define keys (HO)
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pdfescape/pdfescape.sty
+Package: pdfescape 2019/12/09 v1.15 Implements pdfTeX's escape features (HO)
+
+(/usr/share/texlive/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty
+Package: ltxcmds 2023-12-04 v1.26 LaTeX kernel commands for general use (HO)
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+Package: pdftexcmds 2020-06-27 v0.33 Utility functions of pdfTeX for LuaTeX (HO
+)
+
+(/usr/share/texlive/texmf-dist/tex/generic/infwarerr/infwarerr.sty
+Package: infwarerr 2019/12/03 v1.5 Providing info/warning/error messages (HO)
+)
+Package pdftexcmds Info: \pdf@primitive is available.
+Package pdftexcmds Info: \pdf@ifprimitive is available.
+Package pdftexcmds Info: \pdfdraftmode found.
+))
+(/usr/share/texlive/texmf-dist/tex/latex/hycolor/hycolor.sty
+Package: hycolor 2020-01-27 v1.10 Color options for hyperref/bookmark (HO)
+)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
+Package: nameref 2026-01-29 v2.58 Cross-referencing by name of section
+
+(/usr/share/texlive/texmf-dist/tex/latex/refcount/refcount.sty
+Package: refcount 2019/12/15 v3.6 Data extraction from label references (HO)
+)
+(/usr/share/texlive/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty
+Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
+
+(/usr/share/texlive/texmf-dist/tex/latex/kvoptions/kvoptions.sty
+Package: kvoptions 2022-06-15 v3.15 Key value format for package options (HO)
+))
+\c@section@level=\count289
+)
+(/usr/share/texlive/texmf-dist/tex/latex/etoolbox/etoolbox.sty
+Package: etoolbox 2025/10/02 v2.5m e-TeX tools for LaTeX (JAW)
+\etb@tempcnta=\count290
+)
+(/usr/share/texlive/texmf-dist/tex/generic/stringenc/stringenc.sty
+Package: stringenc 2019/11/29 v1.12 Convert strings between diff. encodings (HO
+)
+)
+\@linkdim=\dimen165
+\Hy@linkcounter=\count291
+\Hy@pagecounter=\count292
+
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/pd1enc.def
+File: pd1enc.def 2026-04-24 v7.01q Hyperref: PDFDocEncoding definition (HO)
+Now handling font encoding PD1 ...
+... no UTF-8 mapping file for font encoding PD1
+)
+(/usr/share/texlive/texmf-dist/tex/generic/intcalc/intcalc.sty
+Package: intcalc 2019/12/15 v1.3 Expandable calculations with integers (HO)
+)
+\Hy@SavedSpaceFactor=\count293
+
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/puenc.def
+File: puenc.def 2026-04-24 v7.01q Hyperref: PDF Unicode definition (HO)
+Now handling font encoding PU ...
+... no UTF-8 mapping file for font encoding PU
+)
+Package hyperref Info: Hyper figures OFF on input line 4199.
+Package hyperref Info: Link nesting OFF on input line 4204.
+Package hyperref Info: Hyper index ON on input line 4207.
+Package hyperref Info: Plain pages OFF on input line 4214.
+Package hyperref Info: Backreferencing OFF on input line 4219.
+Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
+Package hyperref Info: Bookmarks ON on input line 4466.
+\c@Hy@tempcnt=\count294
+
+(/usr/share/texlive/texmf-dist/tex/latex/url/url.sty
+\Urlmuskip=\muskip17
+Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+)
+LaTeX Info: Redefining \url on input line 4805.
+\XeTeXLinkMargin=\dimen166
+
+(/usr/share/texlive/texmf-dist/tex/generic/bitset/bitset.sty
+Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
+
+(/usr/share/texlive/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty
+Package: bigintcalc 2019/12/15 v1.5 Expandable calculations on big integers (HO
+)
+))
+\Fld@menulength=\count295
+\Field@Width=\dimen167
+\Fld@charsize=\dimen168
+Package hyperref Info: Hyper figures OFF on input line 6091.
+Package hyperref Info: Link nesting OFF on input line 6096.
+Package hyperref Info: Hyper index ON on input line 6099.
+Package hyperref Info: backreferencing OFF on input line 6106.
+Package hyperref Info: Link coloring OFF on input line 6111.
+Package hyperref Info: Link coloring with OCG OFF on input line 6116.
+Package hyperref Info: PDF/A mode OFF on input line 6121.
+\Hy@abspage=\count296
+\c@Item=\count297
+\c@Hfootnote=\count298
+)
+Package hyperref Info: Driver (autodetected): hpdftex.
+
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/hpdftex.def
+File: hpdftex.def 2026-04-24 v7.01q Hyperref driver for pdfTeX
+\Fld@listcount=\count299
+\c@bookmark@seq@number=\count300
+
+(/usr/share/texlive/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+Package: rerunfilecheck 2025-06-21 v1.11 Rerun checks for auxiliary files (HO)
+
+(/usr/share/texlive/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty
+Package: uniquecounter 2019/12/15 v1.4 Provide unlimited unique counter (HO)
+)
+Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
+84.
+)
+\Hy@SectionHShift=\skip67
+)
+LaTeX Font Info:    Trying to load font information for T1+ptm on input line 75
+.
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1ptm.fd
+File: t1ptm.fd 2001/06/04 font definitions for T1/ptm.
+)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2026-02-18 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count287
+\l__color_backend_stack_int=\count301
 )
 (./pct-monografia.aux
-LaTeX Info: Redefining \. on input line 8.
-LaTeX Info: Redefining \% on input line 8.
+LaTeX Info: Redefining \. on input line 11.
+LaTeX Info: Redefining \% on input line 11.
 Package babel Info: 'spanish' activates 'spanish' shorthands.
-(babel)             Reported on input line 8.
+(babel)             Reported on input line 11.
 )
 \openout1 = `pct-monografia.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 29.
-LaTeX Font Info:    ... okay on input line 29.
-LaTeX Info: Redefining \. on input line 29.
-LaTeX Info: Redefining \% on input line 29.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Info: Redefining \. on input line 75.
+LaTeX Info: Redefining \% on input line 75.
+\big@size=\dimen169
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: letterpaper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(72.2698pt, 469.75539pt, 72.2698pt)
+* v-part:(T,H,B)=(72.2698pt, 650.43037pt, 72.2698pt)
+* \paperwidth=614.295pt
+* \paperheight=794.96999pt
+* \textwidth=469.75539pt
+* \textheight=650.43037pt
+* \oddsidemargin=-0.00018pt
+* \evensidemargin=-0.00018pt
+* \topmargin=-37.00018pt
+* \headheight=14.5pt
+* \headsep=25.0pt
+* \topskip=12.0pt
+* \footskip=30.0pt
+* \marginparwidth=44.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.8pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+Package hyperref Info: Link coloring OFF on input line 75.
+(./pct-monografia.out) (./pct-monografia.out)
+\@outlinefile=\write3
+\openout3 = `pct-monografia.out'.
+
  [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-di
-st/fonts/enc/dvips/cm-super/cm-super-t1.enc}]
+st/fonts/enc/dvips/base/8r.enc}] [2]
+LaTeX Font Info:    Trying to load font information for OT1+ztmcm on input line
+ 132.
+ (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ztmcm.fd
+File: ot1ztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OT1/ztmcm.
+)
+LaTeX Font Info:    Trying to load font information for OML+ztmcm on input line
+ 132.
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/omlztmcm.fd
+File: omlztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OML/ztmcm.
+)
+LaTeX Font Info:    Trying to load font information for OMS+ztmcm on input line
+ 132.
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/omsztmcm.fd
+File: omsztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OMS/ztmcm.
+)
+LaTeX Font Info:    Trying to load font information for OMX+ztmcm on input line
+ 132.
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/omxztmcm.fd
+File: omxztmcm.fd 2000/01/03 Fontinst v1.801 font definitions for OMX/ztmcm.
+)
+LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 1
+32.
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ptm.fd
+File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
+)
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <12> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 132.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <9> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 132.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 132.
+ [3] [4] [5]
 (./pct-monografia.toc
 LaTeX Info: Redefining \. on input line 1.
 LaTeX Info: Redefining \% on input line 1.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <12> on input line 4.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <8> on input line 4.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <6> on input line 4.
 )
-\tf@toc=\write3
-\openout3 = `pct-monografia.toc'.
+\tf@toc=\write4
+\openout4 = `pct-monografia.toc'.
 
- [1
+ [1] [2] (./contenido-anteproyecto.tex
+pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.7 \newpage
+             [1]
+pdfTeX warning (ext4): destination with the same identifier (name{page.2}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.12 \newpage
+              [2]
+pdfTeX warning (ext4): destination with the same identifier (name{page.3}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.17 \newpage
+              [3]
+pdfTeX warning (ext4): destination with the same identifier (name{page.4}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.23 
+      [4]
+pdfTeX warning (ext4): destination with the same identifier (name{page.5}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.28 \newpage
+              [5] [6] [7] [8] [9] [10] [11] [12] [13] [14]
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 1
+18.
 
-]
-Overfull \hbox (63.08792pt too wide) in paragraph at lines 55--56
-\T1/cmr/m/n/12 de re-fe-ren-cia (teó-ri-co, es-ta-do del ar-te AODV/OLSR/Meshta
-stic/Bridgefy/Briar/BitChat,
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd
+File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
+) [15] [16])
+(./contenido-desarrollo.tex [17]
+Overfull \hbox (3.87878pt too wide) in paragraph at lines 8--9
+\T1/ptm/m/n/12 con-trol :8765 y da-tos :8766, \T1/cmtt/m/n/12 NeighborRegistry\
+T1/ptm/m/n/12 ), ca-pa L3 (\T1/cmtt/m/n/12 RoutingTable\T1/ptm/m/n/12 , \T1/cmt
+t/m/n/12 RouteOrchestrator\T1/ptm/m/n/12 ,
  []
 
-[2
-
-
-]
-Cap\'{\i }tulo 1.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <10.95> on input line 74.
-
-Overfull \hbox (9.57626pt too wide) in paragraph at lines 74--85
- [][] 
- []
-
-LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <17.28> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 87.
-[3
-
-]
-Overfull \hbox (106.23048pt too wide) in paragraph at lines 131--139
- [][] 
- []
-
-
-Overfull \hbox (26.98434pt too wide) in paragraph at lines 141--142
-[]\T1/cmr/bx/n/12 Bootstrap miem-bro: \T1/cmr/m/n/12 (1) scan DNS-SD; (2) STA a
-l pa-dre; (3) \T1/cmtt/m/n/12 createGroup()
- []
-
-
-Overfull \hbox (50.48662pt too wide) in paragraph at lines 149--150
-[]\T1/cmr/bx/n/12 Control (:8765): \T1/cmr/m/n/12 HE-LLO, JOIN_COMMIT, PING/PON
-G, TO-PO_UPDATE,
- []
-
-[4]
-Overfull \hbox (1.74608pt too wide) in paragraph at lines 157--158
-\T1/cmr/m/n/12 cam-bia HE-LLO (UUID au-to-ri-ta-ti-vo en \T1/cmtt/m/n/12 sender
-_nid\T1/cmr/m/n/12 ), en-vía JOIN_COMMIT;
- []
-
-
-Overfull \hbox (20.23717pt too wide) in paragraph at lines 161--162
-[]\T1/cmr/m/n/12 Registra por ve-cino: \T1/cmtt/m/n/12 neighbor_nid\T1/cmr/m/n/
-12 , \T1/cmtt/m/n/12 iface \T1/cmr/m/n/12 (UPS-TREAM/DOWNSTREAM),
+[18{/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}]
+Overfull \hbox (54.48654pt too wide) in paragraph at lines 24--25
+[]\T1/ptm/m/n/12 Durante las pri-me-ras tres se-ma-nas se re-vi-sa-ron los es-t
+án-da-res IEEE 802.11, las APIs \T1/cmtt/m/n/12 WifiP2pManager\T1/ptm/m/n/12 ,
  []
 
 
-Overfull \hbox (4.7646pt too wide) in paragraph at lines 166--167
-[]\T1/cmtt/m/n/12 RouteOrchestrator \T1/cmr/m/n/12 man-tie-ne ta-bla lo-cal fu-
-sio-na-da con TO-PO_UPDATE
+Overfull \hbox (79.18402pt too wide) in paragraph at lines 26--27
+\T1/ptm/m/n/12 (\T1/cmtt/m/n/12 08-state-machines.md\T1/ptm/m/n/12 ). Se de-fi-
+nió el for-ma-to bi-na-rio de tra-mas TCP con pre-fi-jo \T1/cmtt/m/n/12 PCT1 \T
+1/ptm/m/n/12 (\T1/cmtt/m/n/12 06-tcp-messages.md\T1/ptm/m/n/12 ):
  []
 
-[5] [6]
-Cap\'{\i }tulo 2.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10.95> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 32.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <8> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 32.
+LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <6> not available
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 32.
 
-Overfull \hbox (8.81923pt too wide) in paragraph at lines 208--209
-[]\T1/cmtt/m/n/12 PctFrameCodecTest\T1/cmr/m/n/12 , \T1/cmtt/m/n/12 PctNidTest\
-T1/cmr/m/n/12 , \T1/cmtt/m/n/12 PctNetworkHelperTest\T1/cmr/m/n/12 : round-trip
- fra-
- []
-
-[7
-
-] [8]
-Overfull \hbox (32.03593pt too wide) in paragraph at lines 274--275
-[]\T1/cmr/m/n/12 Pendiente con-so-li-dar mé-tri-cas fi-na-les de $\OML/cmm/m/it
-/12 T[]$ \T1/cmr/m/n/12 y con-ti-nui-dad \T1/cmtt/m/n/12 session_epoch
- []
-
-[9
-
-]
-Underfull \hbox (badness 10000) in paragraph at lines 285--286
-[]\T1/cmr/m/n/12 Clavijo Tri-vi-ño, J. C., & Gan-zo Mur-cia, B. S.
+Underfull \hbox (badness 10000) in paragraph at lines 37--38
+[]\T1/ptm/m/n/10.95 Hipótesis H1--H5 y ex-pe-ri-men-tos EXP-01..06
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 285--286
-\T1/cmr/m/n/12 (2026). \T1/cmr/m/it/12 An-te-pro-yec-to PCT\T1/cmr/m/n/12 . Uni
--ver-si-dad An-to-nio Na-ri-ño.
+Underfull \hbox (badness 10000) in paragraph at lines 38--38
+[]\T1/ptm/m/n/10.95 Prototipo
  []
 
-[10
+[19] [20]
+Overfull \hbox (48.47755pt too wide) in paragraph at lines 68--69
+[]\T1/ptm/m/n/12 Se creó el mó-du-lo \T1/cmtt/m/n/12 lib-pct-core \T1/ptm/m/n/1
+2 con pa-que-tes \T1/cmtt/m/n/12 internal.p2p \T1/ptm/m/n/12 (\T1/cmtt/m/n/12 G
+oRepository\T1/ptm/m/n/12 , \T1/cmtt/m/n/12 DnsSdRepository\T1/ptm/m/n/12 ,
+ []
 
-] (./pct-monografia.aux
-LaTeX Info: Redefining \. on input line 8.
-LaTeX Info: Redefining \% on input line 8.
+
+Overfull \hbox (13.44797pt too wide) in paragraph at lines 68--69
+\T1/cmtt/m/n/12 P2pChannelHolder\T1/ptm/m/n/12 ), \T1/cmtt/m/n/12 internal.sta 
+\T1/ptm/m/n/12 (\T1/cmtt/m/n/12 LegacyStaRepository\T1/ptm/m/n/12 ) e \T1/cmtt/
+m/n/12 internal.tcp \T1/ptm/m/n/12 (\T1/cmtt/m/n/12 PctFrameCodec\T1/ptm/m/n/12
+ ,
+ []
+
+
+Overfull \hbox (80.46437pt too wide) in paragraph at lines 68--69
+\T1/cmtt/m/n/12 PctControlSocket\T1/ptm/m/n/12 , \T1/cmtt/m/n/12 PctDataSocket\
+T1/ptm/m/n/12 , \T1/cmtt/m/n/12 PctLinkSocket\T1/ptm/m/n/12 ). El boots-trap au
+-to-má-ti-co en \T1/cmtt/m/n/12 PctNodeImpl.bootstrap()
+ []
+
+
+Overfull \hbox (51.63496pt too wide) in paragraph at lines 82--83
+[]\T1/ptm/m/n/12 El \T1/cmtt/m/n/12 LinkOrchestrator \T1/ptm/m/n/12 ges-tio-na 
+wor-kers con-cu-rren-tes so-bre \T1/cmtt/m/n/12 Dispatchers.IO\T1/ptm/m/n/12 : 
+\T1/cmtt/m/n/12 controlAcceptLoop
+ []
+
+
+Overfull \hbox (25.06863pt too wide) in paragraph at lines 82--83
+\T1/ptm/m/n/12 y \T1/cmtt/m/n/12 dataAcceptLoop \T1/ptm/m/n/12 en el GO, \T1/cm
+tt/m/n/12 connectUpstream \T1/ptm/m/n/12 tras STA, \T1/cmtt/m/n/12 controlKeepa
+liveLoop \T1/ptm/m/n/12 con PING/PONG
+ []
+
+[21]
+Underfull \hbox (badness 2020) in paragraph at lines 98--98
+[]\T1/ptm/m/n/10.95 EXP-02 DNS-SD en
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 100--101
+[]\T1/ptm/m/n/10.95 Round-trip HE-LLO 59 B,
+ []
+
+[22]
+Overfull \hbox (75.55708pt too wide) in paragraph at lines 110--111
+\T1/cmtt/m/n/12 goState\T1/ptm/m/n/12 ) y \T1/cmtt/m/n/12 LegacyStaRepository \
+T1/ptm/m/n/12 (\T1/cmtt/m/n/12 requestNetwork\T1/ptm/m/n/12 , \T1/cmtt/m/n/12 d
+isconnect\T1/ptm/m/n/12 , es-ta-dos Id-le/Connecting/Connected/Error).
+ []
+
+
+Overfull \hbox (4.29697pt too wide) in paragraph at lines 114--115
+[]\T1/ptm/b/n/12 Semana 6. \T1/cmtt/m/n/12 LinkOrchestrator \T1/ptm/m/n/12 + \T
+1/cmtt/m/n/12 NeighborRegistry\T1/ptm/m/n/12 . Ac-cept loops en puer-tos 8765/8
+766.
+ []
+
+
+Overfull \hbox (14.6342pt too wide) in paragraph at lines 114--115
+\T1/ptm/m/n/12 con \T1/cmtt/m/n/12 MeshViewModel \T1/ptm/m/n/12 en-la-za-do a \
+T1/cmtt/m/n/12 StateFlow \T1/ptm/m/n/12 de de-bug y to-po-lo-gía. Pri-me-ras se
+-sio-nes ADB A24+Vivo. 
+ []
+
+LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <12> not available
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 116.
+
+Overfull \hbox (18.2573pt too wide) in paragraph at lines 118--119
+\T1/ptm/m/n/12 lec-cio-nar pa-dre y tran-si-tar a JOIN; si no, tras ti-meout co
+n-ver-tir-se en ROOT; (4) en JOIN: \T1/cmtt/m/n/12 removeGroup\T1/ptm/m/n/12 ,
+ []
+
+
+Overfull \hbox (16.79643pt too wide) in paragraph at lines 118--119
+\T1/ptm/m/n/12 STA al pa-dre, \T1/cmtt/m/n/12 createGroup\T1/ptm/m/n/12 , re-ST
+A, anun-cio DNS-SD, \T1/cmtt/m/n/12 link.onStaConnected \T1/ptm/m/n/12 y \T1/cm
+tt/m/n/12 link.onGoReady\T1/ptm/m/n/12 ;
+ []
+
+
+Overfull \hbox (6.86234pt too wide) in paragraph at lines 122--123
+\T1/ptm/m/n/12 LLO trans-por-ta \T1/cmtt/m/n/12 sender_nid \T1/ptm/m/n/12 (16 b
+y-tes UUID bi-na-rio), rol (\T1/cmtt/m/n/12 ISLAND=0\T1/ptm/m/n/12 , \T1/cmtt/m
+/n/12 LEAF=1\T1/ptm/m/n/12 , \T1/cmtt/m/n/12 BRIDGE=2\T1/ptm/m/n/12 , \T1/cmtt/
+m/n/12 ROOT=3\T1/ptm/m/n/12 ),
+ []
+
+[23]
+Overfull \hbox (31.15158pt too wide) in paragraph at lines 132--133
+[]\T1/cmtt/m/n/12 RoutingTable \T1/ptm/m/n/12 al-ma-ce-na en-tra-das \T1/cmtt/m
+/n/12 RoutingEntry \T1/ptm/m/n/12 con des-tino UUID, si-guien-te sal-to (\T1/cm
+tt/m/n/12 next_hop\T1/ptm/m/n/12 ),
+ []
+
+
+Overfull \hbox (34.56197pt too wide) in paragraph at lines 134--135
+[]\T1/cmtt/m/n/12 ForwardWorker \T1/ptm/m/n/12 ope-ra ex-clu-si-va-men-te so-br
+e el ca-nal de da-tos (:8766). An-te un \T1/cmtt/m/n/12 PctUserEnvelope
+ []
+
+
+Overfull \hbox (5.02173pt too wide) in paragraph at lines 134--135
+\T1/cmtt/m/n/12 path_trace \T1/ptm/m/n/12 y re-en-vía al \T1/cmtt/m/n/12 next_h
+op\T1/ptm/m/n/12 . Si \T1/cmtt/m/n/12 hop_limit \T1/ptm/m/n/12 lle-ga a ce-ro o
+ el UUID ya fi-gu-ra en \T1/cmtt/m/n/12 path_trace\T1/ptm/m/n/12 ,
+ []
+
+
+Overfull \hbox (43.42393pt too wide) in paragraph at lines 136--137
+[]\T1/ptm/m/n/12 La API pú-bli-ca ex-po-ne \T1/cmtt/m/n/12 sendUser(destination
+Nid, payload) \T1/ptm/m/n/12 y emi-te \T1/cmtt/m/n/12 PctEvent.UserMessage
+ []
+
+
+Underfull \hbox (badness 1688) in paragraph at lines 152--152
+[]\T1/ptm/m/n/10.95 Tablas lo-ca-les AC-
+ []
+
+
+Overfull \hbox (0.66142pt too wide) in paragraph at lines 152--152
+[]\T1/ptm/m/n/10.95 Implementado| 
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 153--153
+[]\T1/ptm/m/n/10.95 TOPO_UPDATE
+ []
+
+
+Overfull \hbox (0.66142pt too wide) in paragraph at lines 153--153
+[]\T1/ptm/m/n/10.95 Implementado| 
+ []
+
+
+Overfull \hbox (0.66142pt too wide) in paragraph at lines 154--154
+[]\T1/ptm/m/n/10.95 Implementado| 
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 155--155
+[]\T1/ptm/m/n/10.95 EXP-03 ca-de-na 3
+ []
+
+[24]
+Overfull \hbox (159.97017pt too wide) in paragraph at lines 168--169
+\T1/ptm/m/n/12 Co-di-fi-ca-ción TO-PO_UPDATE con TTL y lis-ta de pre-fi-jos anu
+n-cia-dos. In-te-gra-ción en \T1/cmtt/m/n/12 RouteOrchestrator.handleControlFra
+me\T1/ptm/m/n/12 . 
+ []
+
+
+Overfull \hbox (64.78041pt too wide) in paragraph at lines 170--171
+\T1/ptm/m/n/12 En-ve-lo-pe \T1/cmtt/m/n/12 PctUserEnvelope \T1/ptm/m/n/12 con \
+T1/cmtt/m/n/12 hop_limit\T1/ptm/m/n/12 , \T1/cmtt/m/n/12 path_trace \T1/ptm/m/n
+/12 y pay-load opa-co. Emi-sión \T1/cmtt/m/n/12 PctEvent.UserMessage
+ []
+
+[25]
+Overfull \hbox (1.89883pt too wide) in paragraph at lines 182--183
+[]\T1/ptm/m/n/12 Completar el In-cre-men-to 4: de-tec-ción de fa-llos por heart
+-beats, pro-pa-ga-ción NO-DE_DOWN,
+ []
+
+
+Overfull \hbox (51.71205pt too wide) in paragraph at lines 194--195
+\T1/cmtt/m/n/12 init\T1/ptm/m/n/12 ). Ci-fra-do E2E fue-ra de al-can-ce (no en-
+tre-ga-ble). El ser-vi-cio \T1/cmtt/m/n/12 _pct-seek \T1/ptm/m/n/12 y JOIN_OFFE
+R/JOIN_ACCEPT
+ []
+
+[26]
+Underfull \hbox (badness 10000) in paragraph at lines 204--204
+[]\T1/ptm/m/n/10.95 EXP-05 caí-da
+ []
+
+
+Underfull \hbox (badness 4699) in paragraph at lines 206--206
+[]\T1/ptm/m/n/10.95 Reconexión ups-
+ []
+
+
+Overfull \hbox (6.35188pt too wide) in paragraph at lines 206--206
+[]\T1/ptm/m/n/10.95 Implementado| 
+ []
+
+
+Overfull \hbox (13.67934pt too wide) in paragraph at lines 214--215
+[]\T1/ptm/b/n/12 Semana 10. \T1/cmtt/m/n/12 controlKeepaliveLoop\T1/ptm/m/n/12 
+: in-ter-va-lo \T1/cmtt/m/n/12 pingIntervalMs\T1/ptm/m/n/12 , ti-meout \T1/cmtt
+/m/n/12 pingTimeoutMs\T1/ptm/m/n/12 .
+ []
+
+[27] [28]
+Overfull \hbox (10.8995pt too wide) in paragraph at lines 252--253
+[]\T1/ptm/m/n/12 La eva-lua-ción si-gue la ma-triz de va-li-da-ción (\T1/cmtt/m
+/n/12 docs/protocol/11-validation-matrix.md\T1/ptm/m/n/12 ),
+ []
+
+
+Underfull \hbox (badness 1082) in paragraph at lines 266--267
+[]\T1/ptm/m/n/10.95 HELLO 59 B, JOIN 40/17 B, TO-PO,
+ []
+
+[29] [30] [31]
+Overfull \hbox (27.11595pt too wide) in paragraph at lines 340--341
+[]\T1/ptm/m/n/12 La la-ten-cia en ca-de-na de tres sal-tos es-ta-rá do-mi-na-da
+ por sche-du-ling An-dro-id en \T1/cmtt/m/n/12 Dispatchers.IO
+ []
+
+[32]
+Overfull \hbox (74.10167pt too wide) in paragraph at lines 372--373
+[]\T1/ptm/m/n/12 Durante los cua-tro sprints se con-fir-ma-ron res-tric-cio-nes
+ do-cu-men-ta-das en \T1/cmtt/m/n/12 02-platform-constraints.md\T1/ptm/m/n/12 :
+
+ []
+
+
+Underfull \hbox (badness 3029) in paragraph at lines 386--386
+[]\T1/cmtt/m/n/10.95 pct=0 candidatos=0 \T1/ptm/m/n/10.95 con peers
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 387--387
+[]\T1/cmtt/m/n/10.95 local=192.168.49.1
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 390--390
+[]\T1/cmtt/m/n/10.95 [L2] GO ready ^^V accept
+ []
+
+[33]
+Underfull \hbox (badness 10000) in paragraph at lines 402--403
+[]\T1/ptm/b/n/10.95 Grado cum-pli-
+ []
+
+[34])
+Overfull \hbox (109.34584pt too wide) in paragraph at lines 424--191
+[]\T1/ptm/m/n/12 El de-sa-rro-llo por sprints pro-du-jo una bi-blio-te-ca fun-c
+io-nal con tra-za-bi-li-dad documentación$\OMS/ztmcm/m/n/12 !$\T1/ptm/m/n/12 có
+digo$\OMS/ztmcm/m/n/12 !$\T1/ptm/m/n/12 experimento.
+ []
+
+[35]
+Overfull \hbox (78.94687pt too wide) in paragraph at lines 205--206
+[]\T1/ptm/m/n/12 Android De-ve-lo-pers. (2024). \T1/ptm/m/it/12 Net-work over-v
+iew\T1/ptm/m/n/12 . https://developer.android.com/develop/connectivity/network-
+
+ []
+
+[36] [37] [38] (./pct-monografia.aux
+LaTeX Info: Redefining \. on input line 11.
+LaTeX Info: Redefining \% on input line 11.
 )
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-03-20>
  ***********
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
+Package rerunfilecheck Info: File `pct-monografia.out' has not changed.
+(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 2298 strings out of 467363
- 37753 string characters out of 5419001
- 459882 words of memory out of 6000000
- 31414 multiletter control sequences out of 15000+600000
- 641410 words of font info for 67 fonts, out of 8000000 for 9000
+ 10897 strings out of 467363
+ 171545 string characters out of 5419001
+ 608097 words of memory out of 6000000
+ 39766 multiletter control sequences out of 15000+600000
+ 673210 words of font info for 112 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 38i,11n,45p,403b,365s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></us
-r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share
-/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive
-/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf
--dist/fonts/type1/public/cm-super/sfbx1095.pfb></usr/share/texlive/texmf-dist/f
-onts/type1/public/cm-super/sfbx1200.pfb></usr/share/texlive/texmf-dist/fonts/ty
-pe1/public/cm-super/sfbx1440.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
-lic/cm-super/sfbx1728.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/cm-
-super/sfbx2488.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/cm-super/s
-frm1095.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/cm-super/sfrm1200
-.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/cm-super/sfrm1440.pfb></
-usr/share/texlive/texmf-dist/fonts/type1/public/cm-super/sfti1200.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/cm-super/sfti1440.pfb></usr/share/texl
-ive/texmf-dist/fonts/type1/public/cm-super/sftt1095.pfb></usr/share/texlive/tex
-mf-dist/fonts/type1/public/cm-super/sftt1200.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/cm-super/sftt1728.pfb>
-Output written on pct-monografia.pdf (11 pages, 330520 bytes).
+ 75i,12n,79p,3084b,581s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></us
+r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/shar
+e/texlive/texmf-dist/fonts/type1/public/cm-super/sftt1095.pfb></usr/share/texli
+ve/texmf-dist/fonts/type1/public/cm-super/sftt1200.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/urw/symbol/usyr.pfb></usr/share/texlive/texmf-dist/fonts/typ
+e1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/ut
+mr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on pct-monografia.pdf (45 pages, 220122 bytes).
 PDF statistics:
- 126 PDF objects out of 1000 (max. 8388607)
- 78 compressed objects within 1 object stream
- 0 named destinations out of 1000 (max. 500000)
+ 286 PDF objects out of 1000 (max. 8388607)
+ 220 compressed objects within 3 object streams
+ 73 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

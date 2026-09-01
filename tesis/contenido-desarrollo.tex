@@ -1,0 +1,424 @@
+% Desarrollo, resultados y análisis — detalle por sprints (12 pt)
+
+% =============================================================================
+\capitulo{Desarrollo del sistema}
+
+El desarrollo del protocolo PCT se ejecutó siguiendo la metodología incremental del anteproyecto, organizada en cuatro sprints académicos de tres semanas cada uno (12 semanas totales). Cada sprint corresponde a un incremento funcional verificable: diseño formal, descubrimiento y enlace L2, enrutamiento multisalto L3 y reconfiguración topológica con validación empírica. La implementación se consolidó en la biblioteca Maven \texttt{co.uan.pct:core} (módulo \texttt{lib-pct-core}, versión 2.x) y en la aplicación demostrativa \texttt{pctmesh} (\texttt{app-demo}), desplegable como APK de depuración en dispositivos Android 12+ (API 31) sin acceso \emph{root}.
+
+La arquitectura de software separa responsabilidades en capas alineadas con la especificación wire (\texttt{docs/protocol/}): capa L1 (Wi-Fi Direct GO, STA legacy, DNS-SD), capa L2 (TCP control :8765 y datos :8766, \texttt{NeighborRegistry}), capa L3 (\texttt{RoutingTable}, \texttt{RouteOrchestrator}, \texttt{ForwardWorker}) y capa de aplicación (\texttt{PctNode}, eventos de usuario, UI de depuración). El punto de entrada público es la interfaz \texttt{PctNode}, instanciada internamente como \texttt{PctNodeImpl}, la cual orquesta el ciclo \texttt{init} $\rightarrow$ \texttt{start} $\rightarrow$ bootstrap automático $\rightarrow$ operación $\rightarrow$ \texttt{close}.
+
+\seccion{Entorno de desarrollo y dispositivos de laboratorio}
+
+El entorno de compilación utiliza Gradle 8.x, Kotlin 1.9+, Android Gradle Plugin y JDK 17. La biblioteca core se publica como artefacto AAR/JAR consumible desde el módulo de aplicación. Las pruebas unitarias se ejecutan con \texttt{./gradlew :lib-pct-core:test} en JVM; las pruebas de integración y sistema requieren dispositivos físicos conectados vía ADB.
+
+Los terminales de laboratorio clasificados como dispositivos clase~$\alpha$ son: Samsung Galaxy A24 (\texttt{R58W6053SSW}), designado habitualmente como nodo ROOT en escenarios de dos y tres saltos, y Vivo Y21s (\texttt{3435708850002SR}), empleado como nodo hijo, BRIDGE o LEAF según el experimento. Ambos cumplen el CDD de Android 12: RAM $\geq$ 2~GB, Wi-Fi Direct mandatorio y resolución mínima 426~dp $\times$ 320~dp. La captura de evidencia empírica se realiza con \texttt{adb logcat -s PctMesh}, filtrando la etiqueta definida en \texttt{PctNodeImpl}.
+
+\seccion{Sprint 1 — Análisis y diseño de la arquitectura base (semanas 1--3)}
+
+\subseccion{Objetivos del sprint}
+
+Establecer los cimientos conceptuales y formales del protocolo antes de escribir código de producción: levantamiento de requisitos funcionales y no funcionales, análisis de restricciones de plataforma Android, diseño de la arquitectura concurrente y redacción de la especificación wire inicial. Este sprint materializa el Incremento~1 del anteproyecto.
+
+\subseccion{Actividades realizadas}
+
+Durante las primeras tres semanas se revisaron los estándares IEEE 802.11, las APIs \texttt{WifiP2pManager}, \texttt{ConnectivityManager.requestNetwork} y el mecanismo DNS-SD sobre Wi-Fi Direct. Se estudiaron protocolos de referencia (AODV, OLSR) para extraer patrones aplicables en capa de aplicación —descubrimiento bajo demanda, tablas de rutas locales, prevención de ciclos— descartando su implementación nativa por inviabilidad en Android retail.
+
+Se redactó el documento de requisitos (\texttt{docs/protocol/01-requirements.md}) con identificadores RF-01 a RF-15, el modelo de enlace dual GO+STA (\texttt{04-link-model-go-legacy.md}), la arquitectura de componentes (\texttt{03-architecture.md}) y las máquinas de estado de bootstrap (\texttt{08-state-machines.md}). Se definió el formato binario de tramas TCP con prefijo \texttt{PCT1} (\texttt{06-tcp-messages.md}): encabezado fijo de 12 bytes y catálogo de tipos HELLO, JOIN\_COMMIT, TOPO\_UPDATE, PING/PONG, NODE\_DOWN y DATA.
+
+\subseccion{Artefactos entregados}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{2.2cm}p{10.5cm}@{}}
+\hline
+\textbf{Artefacto} & \textbf{Descripción} \\
+\hline
+Spec v0.1 & 19 documentos en \texttt{docs/protocol/} \\
+Matriz EXP & Hipótesis H1--H5 y experimentos EXP-01..06 (\texttt{11-validation-matrix.md}) \\
+Prototipo EXP-01 & Módulo \texttt{proto-exp01-gostat}: dos GO + STA, sin L2 formal \\
+Diagramas & Secuencia bootstrap ROOT$\leftarrow$hijo; capas L1/L2/L3 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subseccion{Decisiones de diseño clave}
+
+Se adoptó el principio de \emph{continuidad lógica}: todo nodo mantiene GO propio (SoftAP P2P) incluso cuando actúa como STA del padre, de modo que pueda aceptar hijos downstream sin reiniciar el SSID del árbol. Se definió el rol BRIDGE para nodos con padre upstream y al menos un hijo downstream. La identidad de red es un UUID de 128 bits (\texttt{node\_id}) propagado autoritativamente en HELLO wire, no en registros TXT truncados.
+
+\subseccion{Resultados parciales del sprint}
+
+Al cierre de la semana~3 se contaba con especificación revisable por el director de proyecto, trazabilidad requisito$\rightarrow$experimento y un prototipo monolítico EXP-01 capaz de demostrar H1 (GO+STA simultáneo) de forma manual. No existía aún \texttt{NeighborRegistry} ni canal TCP formal; el handshake se probaba con sockets ad hoc. El gate EXP-01 se declaró criterio bloqueante para iniciar el Incremento~2.
+
+\subseccion{Desglose semanal del Sprint 1}
+
+\textbf{Semana 1.} Revisión bibliográfica aplicada (AODV, OLSR, Meshtastic, Bridgefy, Briar, BitChat) y extracción de requisitos RF desde el anteproyecto. Identificación de restricciones Android 12: \texttt{WifiP2pManager} exige permisos de ubicación para descubrimiento; \texttt{NEARBY\_WIFI\_DEVICES} en API 33+; coexistencia GO+STA no garantizada en todos los fabricantes.
+
+\textbf{Semana 2.} Modelado UML de clases preliminar: entidades \texttt{PctNode}, \texttt{GoRepository}, \texttt{LegacyStaRepository}, \texttt{DnsSdRepository}, \texttt{TopologySnapshot}. Definición del perfil mínimo de enlace (documento 04): prohibición de \texttt{connect()} P2P para topología; solo STA legacy downstream. Formato SSID \texttt{DIRECT-PCT-} + prefijo hex de \texttt{node\_id}.
+
+\textbf{Semana 3.} Redacción de catálogo de mensajes TCP (12 tipos wire). Validación teórica de tamaños de frame: HELLO 59~B, JOIN\_COMMIT 40~B, JOIN\_ACK 17~B, NODE\_DOWN 52~B. Revisión con director de proyecto. Entrega de paquete \texttt{docs/protocol/} v0.1.0-pre y cronograma de sprints 2--4.
+
+\seccion{Sprint 2 — Descubrimiento, bootstrap y capa de enlace L2 (semanas 4--6)}
+
+\subseccion{Objetivos del sprint}
+
+Implementar el Incremento~2: descubrimiento automático de nodos vecinos, formación de topología inicial padre--hijo y enlace TCP bidireccional confiable en dos canales. Entregable mínimo: dos dispositivos enlazados con HELLO/JOIN completado y UUID visible en UI, sin intervención manual del operador.
+
+\subseccion{Módulos implementados}
+
+Se creó el módulo \texttt{lib-pct-core} con paquetes \texttt{internal.p2p} (\texttt{GoRepository}, \texttt{DnsSdRepository}, \texttt{P2pChannelHolder}), \texttt{internal.sta} (\texttt{LegacyStaRepository}) e \texttt{internal.tcp} (\texttt{PctFrameCodec}, \texttt{PctControlSocket}, \texttt{PctDataSocket}, \texttt{PctLinkSocket}). El bootstrap automático en \texttt{PctNodeImpl.bootstrap()} ejecuta la secuencia:
+
+\begin{enumerate}
+  \item Escaneo DNS-SD de servicios \texttt{\_pct-ctrl.\_tcp.local} (GO apagado temporalmente si hay candidatos sin registro activo).
+  \item Selección de padre con \texttt{ParentSelector} (menor hop, mayor \texttt{tree\_version}, desempate lexicográfico por UUID).
+  \item Asociación STA al SSID/PSK legacy del GO padre vía \texttt{requestNetwork}.
+  \item \texttt{createGroup()} local para restaurar GO propio del nodo hijo.
+  \item Re-asociación STA al padre (nodo BRIDGE).
+  \item Anuncio \texttt{\_pct-ctrl} con registro TXT (\texttt{PctInstanceCodec}).
+  \item Activación L2: \texttt{LinkOrchestrator.onStaConnected} hacia upstream y \texttt{onGoReady} para accept downstream.
+\end{enumerate}
+
+\subseccion{Capa de enlace: dos canales TCP}
+
+El \texttt{LinkOrchestrator} gestiona workers concurrentes sobre \texttt{Dispatchers.IO}: \texttt{controlAcceptLoop} y \texttt{dataAcceptLoop} en el GO, \texttt{connectUpstream} tras STA, \texttt{controlKeepaliveLoop} con PING/PONG periódico. Cada vecino queda registrado en \texttt{NeighborRegistry} con sockets de control y datos, estado de canal (\texttt{DataChannelState}) y UUID autoritativo del HELLO recibido.
+
+El requisito de \texttt{Network.bindSocket} para el socket upstream fue incorporado tras detectar self-connect a \texttt{192.168.49.1} cuando Android enrutaba por la interfaz P2P en lugar de la red STA activa. \texttt{PctLinkSocket} encapsula \texttt{connect()} y \texttt{bindSocket()} sobre el \texttt{Network} obtenido de \texttt{LegacyStaRepository}.
+
+\subseccion{Problemas encontrados y correcciones}
+
+Durante el sprint se registraron fallos recurrentes documentados en la matriz de validación: (a)~ambos nodos declarándose ROOT por escaneo prematuro sin \texttt{\_pct-ctrl} activo — mitigado con espera de 10~s si hay peers P2P visibles pero cero candidatos DNS-SD; (b)~UUID truncado a 32 caracteres hex en TXT — resuelto propagando UUID completo en payload HELLO de 59 bytes; (c)~EOF en handshake por cierre prematuro del \texttt{ServerSocket} — resuelto manteniendo accept loops vivos mientras \texttt{running=true}; (d)~conflicto GO encendido durante \texttt{discoverServices} — el escaneo DNS-SD se ejecuta con GO removido y se restaura tras seleccionar padre.
+
+\subseccion{Resultados parciales del sprint}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{3.5cm}p{2cm}p{6.5cm}@{}}
+\hline
+\textbf{Criterio} & \textbf{Estado} & \textbf{Evidencia} \\
+\hline
+EXP-02 DNS-SD en GO & Parcial & TXT parseado en emulador; pendiente repetición A24 \\
+EXP-01 dos GO enlazados & En curso & STA+HELLO observados; $T_{\mathrm{join}}$ por consolidar \\
+Tests \texttt{PctFrameCodec} & PASS & Round-trip HELLO 59~B, JOIN\_COMMIT 40~B \\
+UI debug bootstrap & PASS & Fase, acción, candidatos, SSID GO/STA \\
+\hline
+\end{tabular}
+\end{center}
+
+Al final de la semana~6 la aplicación demo mostraba en pantalla de depuración: rol inferido (ISLAND/ROOT/BRIDGE/LEAF), fase de bootstrap, conteo de candidatos \texttt{pct=}, estado GO/STA, enlaces ctrl/data abiertos y UUID copiable. El chat de usuario aún no operaba multisalto; correspondía al Sprint~3.
+
+\subseccion{Desglose semanal del Sprint 2}
+
+\textbf{Semana 4.} Implementación de \texttt{GoRepository} (\texttt{createGroup}, \texttt{removeGroup}, observables \texttt{goState}) y \texttt{LegacyStaRepository} (\texttt{requestNetwork}, \texttt{disconnect}, estados Idle/Connecting/Connected/Error). Integración con \texttt{P2pChannelHolder} para registro de \texttt{BroadcastReceiver} y limpieza P2P en \texttt{init}/\texttt{close}.
+
+\textbf{Semana 5.} \texttt{DnsSdRepository}: registro \texttt{\_pct-ctrl.\_tcp}, descubrimiento, parseo TXT con \texttt{PctTxtParser} y \texttt{PctInstanceCodec}. Implementación de \texttt{PctFrameCodec} y tests round-trip. Primer bootstrap automático sin L2: ROOT si no hay candidatos; STA si hay padre seleccionado.
+
+\textbf{Semana 6.} \texttt{LinkOrchestrator} + \texttt{NeighborRegistry}. Accept loops en puertos 8765/8766. \texttt{connectUpstream} con HELLO/JOIN\_COMMIT. Corrección \texttt{bindSocket}. Pantalla \texttt{MeshScreen} con \texttt{MeshViewModel} enlazado a \texttt{StateFlow} de debug y topología. Primeras sesiones ADB A24+Vivo.
+
+\subseccion{Secuencia de bootstrap en \texttt{PctNodeImpl}}
+
+La función \texttt{bootstrap()} ejecuta, en orden: (1)~apagar GO residual si interfiere con escaneo; (2)~\texttt{discoverServices} durante ventana configurable; (3)~si hay candidatos \texttt{\_pct-ctrl}, seleccionar padre y transitar a JOIN; si no, tras timeout convertirse en ROOT; (4)~en JOIN: \texttt{removeGroup}, STA al padre, \texttt{createGroup}, re-STA, anuncio DNS-SD, \texttt{link.onStaConnected} y \texttt{link.onGoReady}; (5)~publicar topología con rol BRIDGE o LEAF según presencia de hijos. Cada transición actualiza \texttt{NodePhase} (ISLAND, SCANNING, JOINING, ROOT, BRIDGE, LEAF) visible en UI.
+
+\subseccion{Formato wire implementado (extracto)}
+
+Todos los frames usan magia ASCII \texttt{PCT1}, versión 1 y \texttt{payload\_len} big-endian. El HELLO transporta \texttt{sender\_nid} (16 bytes UUID binario), rol (\texttt{ISLAND=0}, \texttt{LEAF=1}, \texttt{BRIDGE=2}, \texttt{ROOT=3}), \texttt{parent\_nid}, \texttt{epoch}, \texttt{tree\_version}, \texttt{hop} y \texttt{capabilities}. Esta estructura fija de 59 bytes totales elimina ambigüedad de parseo respecto a implementaciones basadas en JSON o texto libre.
+
+\seccion{Sprint 3 — Enrutamiento multisalto y mensajería de usuario (semanas 7--9)}
+
+\subseccion{Objetivos del sprint}
+
+Materializar el Incremento~3: tablas de rutas locales, propagación TOPO\_UPDATE, reenvío de mensajes de aplicación a través de nodos no adyacentes y validación de cadena mínima de tres dispositivos. El núcleo algorítmico reside en \texttt{RouteOrchestrator} y \texttt{RoutingTable}.
+
+\subseccion{Implementación de la capa de red (L3)}
+
+\texttt{RoutingTable} almacena entradas \texttt{RoutingEntry} con destino UUID, siguiente salto (\texttt{next\_hop}), métrica de saltos, estado (ACTIVE/STALE) y \texttt{tree\_version}. Las rutas directas a vecinos se derivan de \texttt{NeighborRegistry} con hop=1. \texttt{RouteSyncWorker} procesa tramas TOPO\_UPDATE recibidas en canal de control, fusionando anuncios con reglas de precedencia por versión de árbol y TTL decreciente para evitar inundación.
+
+\texttt{ForwardWorker} opera exclusivamente sobre el canal de datos (:8766). Ante un \texttt{PctUserEnvelope} cuyo destino no es local, consulta la tabla, decrementa \texttt{hop\_limit}, añade el UUID propio a \texttt{path\_trace} y reenvía al \texttt{next\_hop}. Si \texttt{hop\_limit} llega a cero o el UUID ya figura en \texttt{path\_trace}, el paquete se descarta (anti-ciclo).
+
+La API pública expone \texttt{sendUser(destinationNid, payload)} y emite \texttt{PctEvent.UserMessage} en destino final. La UI \texttt{MeshScreen} integra lista de vecinos, tabla de rutas y campo de envío de prueba.
+
+\subseccion{Pruebas internas del sprint}
+
+Las pruebas unitarias \texttt{PctNidTest} verifican normalización de UUID (con y sin guiones). \texttt{PctNetworkHelperTest} valida extracción de gateway IPv4 desde \texttt{NetworkCapabilities} de la red STA. \texttt{PctFrameCodecTest} cubre codificación/decodificación de todos los tipos de mensaje implementados.
+
+Las pruebas de integración L3 en banco (dos JVM no aplican; requieren hardware) se planificaron como EXP-03: topología A (ROOT) $\leftarrow$ B (BRIDGE) $\leftarrow$ C (LEAF), envío DATA de C hacia A con reenvío en B.
+
+\subseccion{Resultados parciales del sprint}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{3.2cm}p{2.2cm}p{6.6cm}@{}}
+\hline
+\textbf{Entregable} & \textbf{Estado} & \textbf{Observación} \\
+\hline
+Tablas locales ACTIVE & Implementado & Visibles en \texttt{RouteSnapshot} UI \\
+TOPO\_UPDATE gossip & Implementado & TTL configurable en \texttt{PctConfig} \\
+ForwardWorker DATA & Implementado & Separado de canal control \\
+EXP-03 cadena 3 nodos & Pendiente & Requiere tercer dispositivo o emulador \\
+EXP-04 unión tardía & Diseñado & Procedimiento en matriz §2.4 \\
+EXP-06 \texttt{\_pct-seek} & Parcial & Servicio definido; JOIN\_OFFER en curso \\
+\hline
+\end{tabular}
+\end{center}
+
+\subseccion{Lecciones del sprint}
+
+La separación estricta de canales control/datos permitió saturar el canal de datos con mensajes de chat de prueba sin bloquear PING de keepalive — requisito explícito de la Fase~A del roadmap de implementación. La topología publicada en \texttt{TopologySnapshot} se recalcula reactivamente combinando flujos \texttt{neighbors} y \texttt{routes}, evitando inconsistencias entre UI y estado interno.
+
+\subseccion{Desglose semanal del Sprint 3}
+
+\textbf{Semana 7.} Diseño de \texttt{RoutingTable} y \texttt{RoutingEntry}. Rutas directas desde vecinos L2. Codificación TOPO\_UPDATE con TTL y lista de prefijos anunciados. Integración en \texttt{RouteOrchestrator.handleControlFrame}.
+
+\textbf{Semana 8.} \texttt{ForwardWorker}: decisión entregar local vs reenviar según \texttt{destinationNid}. Envelope \texttt{PctUserEnvelope} con \texttt{hop\_limit}, \texttt{path\_trace} y payload opaco. Emisión \texttt{PctEvent.UserMessage} en entrega final.
+
+\textbf{Semana 9.} UI chat de prueba; observable \texttt{routes} en pantalla; pruebas de regresión JUnit ampliadas. Simulación manual de cadena A-B-C rotando roles entre dos dispositivos (modo degradado sin tercer terminal). Documentación \texttt{15-network-layer.md} y \texttt{16-packet-envelope.md} alineadas al código.
+
+\subseccion{Modelo de datos de topología publicada}
+
+\texttt{TopologySnapshot} contiene nodo \texttt{self} (\texttt{nodeId}, \texttt{role}, \texttt{hop}) y lista de \texttt{children} conocidos downstream. Se combina con \texttt{NeighborSnapshot} (vecinos L2 con UUID, IP, estado canal datos) y \texttt{RouteSnapshot} (destino, next hop, hop count, estado ACTIVE/STALE). La UI de depuración muestra simultáneamente las tres vistas para correlacionar fallos de enrutamiento con fallos de enlace.
+
+\seccion{Sprint 4 — Reconfiguración topológica, endurecimiento y validación (semanas 10--12)}
+
+\subseccion{Objetivos del sprint}
+
+Completar el Incremento~4: detección de fallos por heartbeats, propagación NODE\_DOWN, reconvergencia tras caída de nodo BRIDGE, recolección de métricas empíricas y estabilización de la versión demo para defensa de grado.
+
+\subseccion{Mecanismos de resiliencia}
+
+El \texttt{controlKeepaliveLoop} emite PING periódico hacia vecinos upstream y downstream. Tras \texttt{config.pingTimeoutMs} sin PONG, el vecino se marca degradado y se programa reconexión upstream (\texttt{upstreamReconnectJob}) sin destruir GO local. NODE\_DOWN (52 bytes payload) informa a vecinos de la caída de un nexo; las rutas que dependían de ese salto transitan a STALE hasta nueva convergencia.
+
+El concepto de \texttt{session\_epoch} (campo en HELLO y JOIN) permite que conversaciones activas sobrevivan reconfiguraciones menores: si el epoch no cambia tras re-JOIN, la capa de aplicación no reinicia estado de chat. EXP-05 valida H5.
+
+\texttt{DataChannelRecoveryWorker} (negociación DATA\_CHANNEL\_OPEN/ACK por canal control) reabre :8766 caído sin reiniciar bootstrap L1.
+
+\subseccion{Endurecimiento y deuda técnica}
+
+Persistencia de \texttt{node\_id} entre reinicios queda como deuda (UUID regenerado en cada \texttt{init}). Cifrado E2E fuera de alcance (no entregable). El servicio \texttt{\_pct-seek} y JOIN\_OFFER/JOIN\_ACCEPT completos están especificados en \texttt{09-join-protocol.md} con implementación parcial para escenarios ISLAND.
+
+\subseccion{Resultados parciales del sprint}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{2.8cm}p{2cm}p{7.2cm}@{}}
+\hline
+\textbf{Experimento} & \textbf{Estado} & \textbf{Notas} \\
+\hline
+EXP-05 caída BRIDGE & Planificado & Requiere 3 dispositivos + apagado simulado \\
+EXP-01 gate & En curso & Bloqueante para cierre experimental \\
+Reconexión upstream & Implementado & \texttt{bindSocket} + backoff \\
+Log empírico & Plantilla & Formato markdown en matriz §4 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subseccion{Desglose semanal del Sprint 4}
+
+\textbf{Semana 10.} \texttt{controlKeepaliveLoop}: intervalo \texttt{pingIntervalMs}, timeout \texttt{pingTimeoutMs}. Marcado de vecino degradado. \texttt{upstreamReconnectJob} con backoff exponencial acotado.
+
+\textbf{Semana 11.} NODE\_DOWN: generación ante cierre de socket upstream; propagación limitada por TTL de control. DATA\_CHANNEL\_OPEN/ACK/RESET para recuperación de :8766. Deprecación de UDP HELLO provisional (\texttt{HelloHub}).
+
+\textbf{Semana 12.} Consolidación APK debug; scripts ADB documentados en anexo; preparación plantillas EXP-01..06 para sesión de mediciones. Revisión de deuda técnica (persistencia UUID, JOIN\_OFFER completo, cifrado).
+
+\subseccion{Aplicación demostrativa \texttt{pctmesh}}
+
+El módulo \texttt{app-demo} consume \texttt{lib-pct-core} vía Gradle. \texttt{MainActivity} solicita permisos (\texttt{PctPermissions}) y lanza \texttt{MeshScreen} con Jetpack Compose. \texttt{MeshViewModel} observa \texttt{PctNode.topology}, \texttt{neighbors}, \texttt{routes}, \texttt{debug} y \texttt{events}. Acciones expuestas: \texttt{start()}, \texttt{close()}, envío de mensaje de prueba a UUID destino. La pantalla de depuración muestra candidatos DNS-SD parseados, contadores \texttt{peerCount}/\texttt{pctCtrlSeen} y estado de enlaces ctrl/data — instrumentación esencial para correlacionar logs con comportamiento visible.
+
+\seccion{Evolución del repositorio y trazabilidad}
+
+La migración desde \texttt{proto-exp01-gostat} hacia \texttt{lib-pct-core} preservó el comportamiento L1 validado en EXP-01 y añadió capas formales. La tabla siguiente resume la trazabilidad sprint$\rightarrow$módulo$\rightarrow$experimento.
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{1.8cm}p{4.2cm}p{3.2cm}p{3.8cm}@{}}
+\hline
+\textbf{Sprint} & \textbf{Módulos principales} & \textbf{Versión lib} & \textbf{EXP asociado} \\
+\hline
+1 & \texttt{docs/protocol/*} & — & Diseño \\
+2 & \texttt{p2p/}, \texttt{sta/}, \texttt{tcp/}, \texttt{link/} & 1.0--1.5 & EXP-01, EXP-02 \\
+3 & \texttt{route/}, \texttt{PctNodeImpl} & 1.8--2.0 & EXP-03, EXP-04, EXP-06 \\
+4 & keepalive, recovery, métricas & 2.0+ & EXP-05 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subseccion{Síntesis del desarrollo}
+
+Al cierre del periodo de desarrollo documentado, el sistema implementa bootstrap automático completo, enlace L2 dual TCP, tablas de rutas L3, reenvío de mensajes de usuario y mecanismos de keepalive/recuperación parcial. Los sprints 1--2 aportaron la base formal y el enlace vecino; el sprint~3 habilitó la extensión multisalto lógica; el sprint~4 concentró la resiliencia y la instrumentación para mediciones. La validación empírica consolidada se presenta en el capítulo siguiente.
+
+% =============================================================================
+\newpage
+\capitulo{Resultados y análisis de resultados}
+
+\seccion{Marco de evaluación experimental}
+
+La evaluación sigue la matriz de validación (\texttt{docs/protocol/11-validation-matrix.md}), que define cinco hipótesis (H1--H5) y seis experimentos (EXP-01..06) con criterios de aceptación binarios (PASS/FAIL) y métricas cuantitativas. Las variables dependientes principales son: tiempo de unión ($T_{\mathrm{join}}$), tiempo de unión en cadena ($T_{\mathrm{join\_chain}}$), latencia extremo a extremo ($T_{\mathrm{data\_e2e}}$), tiempo de reconfiguración ($T_{\mathrm{reconfig}}$) y profundidad topológica máxima alcanzada.
+
+Los instrumentos de medición son: (1)~logs estructurados \texttt{PctMesh} con marcas temporales implícitas de logcat; (2)~snapshots de UI (\texttt{PctDebugSnapshot}) capturables en pantalla; (3)~tests JUnit automatizados; (4)~tabla de registro empírico por experimento (plantilla §4 de la matriz).
+
+\seccion{Resultados de pruebas unitarias y de componente}
+
+Las pruebas aisladas ejecutadas en CI/local sin hardware validan la correctitud del protocolo wire y utilidades de red. No sustituyen EXP-01..06 pero garantizan regresión ante cambios en códec o helpers.
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{4.5cm}p{2cm}p{6.5cm}@{}}
+\hline
+\textbf{Suite} & \textbf{Resultado} & \textbf{Cobertura funcional} \\
+\hline
+\texttt{PctFrameCodecTest} & PASS & HELLO 59~B, JOIN 40/17~B, TOPO, PING/PONG, DATA \\
+\texttt{PctNidTest} & PASS & Normalización UUID 32/36 chars \\
+\texttt{PctNetworkHelperTest} & PASS & Gateway STA IPv4 \\
+\texttt{PctCoreTest} & PASS & Smoke API pública \\
+\hline
+\end{tabular}
+\end{center}
+
+El round-trip de HELLO verifica magia \texttt{PCT1}, versión 1, \texttt{msg\_type}=0x01 y payload de 47 bytes con \texttt{sender\_nid}, rol enum, \texttt{parent\_nid}, epoch y hop. Errores de longitud o magia inválida lanzan excepción en decode, impidiendo estados corruptos en L2.
+
+\seccion{EXP-01 — Interconexión de dos Group Owners}
+
+\subseccion{Configuración y procedimiento}
+
+Dispositivo D1 (Samsung A24): nodo ROOT. Dispositivo D2 (Vivo Y21s): nodo hijo. Secuencia: D1 \texttt{start()} $\rightarrow$ espera anuncio \texttt{\_pct-ctrl} $\rightarrow$ D2 \texttt{start()}. D2 debe descubrir D1, asociar STA, recrear GO, re-asociar STA, completar TCP HELLO upstream y JOIN\_COMMIT.
+
+\subseccion{Criterios de aceptación}
+
+\begin{enumerate}
+  \item D2 asocia STA al SSID legacy de D1 (estado \texttt{StaState.Connected}).
+  \item D2 mantiene GO propio activo tras re-asociación (H1).
+  \item HELLO L2 completado; UUID de D1 visible en UI de D2.
+  \item $T_{\mathrm{join}} < 15\,000$~ms (umbral teórico del anteproyecto).
+\end{enumerate}
+
+\subseccion{Resultados observados}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{4.8cm}p{2.2cm}p{3.2cm}@{}}
+\hline
+\textbf{Indicador} & \textbf{Criterio} & \textbf{Observado} \\
+\hline
+STA asociada al padre & Sí & Sí (intermitente) \\
+GO hijo post-STA & Sí & Sí \\
+HELLO L2 + UUID completo & Sí & Sí tras fix wire \\
+JOIN\_COMMIT / ACK & Sí & Parcial \\
+$T_{\mathrm{join}}$ (ms) & $<15\,000$ & Por medir \\
+\hline
+\end{tabular}
+\end{center}
+
+\subseccion{Análisis EXP-01}
+
+Los registros de laboratorio muestran que la fase más variable es el escaneo DNS-SD inicial: si D2 escanea antes de que D1 anuncie \texttt{\_pct-ctrl}, ambos convergen a ROOT (H2 falla). La espera de 10~s con peers visibles mitiga pero no elimina la condición de carrera. Tras sincronizar manualmente el orden de \texttt{start()}, STA y HELLO se observaron de forma repetible. El self-connect a \texttt{192.168.49.1} se diagnosticó cuando \texttt{local=remote} en log; la corrección \texttt{bindSocket} en red STA resolvió el patrón en pruebas posteriores.
+
+EXP-01 permanece como \emph{gate} del proyecto: sin PASS estable, los experimentos multisalto no son concluyentes.
+
+\seccion{EXP-02 — DNS-SD en Group Owner sin Group Membership}
+
+\subseccion{Objetivo}
+
+Confirmar que \texttt{addLocalService} opera exclusivamente con GO activo y que D2 puede \texttt{discoverServices()} sin \texttt{connect()} P2P, recibiendo TXT completo con \texttt{nid}, \texttt{go\_ssid} y \texttt{cp} (código de perfil).
+
+\subseccion{Resultados}
+
+En pruebas controladas, D1 con \texttt{createGroup()} + registro \texttt{\_pct-ctrl} permite a D2 parsear candidatos en \texttt{ParentSelector}. El campo TXT limitado a ~198 bytes obliga a no depender de UUID completo en DNS; el UUID autoritativo se obtiene del HELLO TCP (59 bytes). Resultado: PASS en parseo de candidatos; FAIL intermitente en descubrimiento si GO de D2 interfiere — mitigación documentada en Sprint~2.
+
+\seccion{EXP-03 — Cadena de tres nodos}
+
+\subseccion{Topología}
+
+A (ROOT) $\leftarrow$ B (BRIDGE) $\leftarrow$ C (LEAF). C envía DATA de aplicación hacia A; B reenvía por \texttt{ForwardWorker} sin procesar payload.
+
+\subseccion{Criterios y métricas teóricas}
+
+Entrega en A con \texttt{dst\_nid} correcto; $T_{\mathrm{join\_chain}} \leq 30\,000$~ms; $T_{\mathrm{data\_e2e}} \leq 500$~ms en laboratorio ideal; 0\% pérdida en 100 mensajes de prueba.
+
+\subseccion{Estado actual}
+
+Implementación L3 completa en código; validación física pendiente de tercer terminal o rotación de roles en sesiones seriales. Las tablas de rutas en B deben listar A como next\_hop hacia destinos upstream y C como vecino downstream. TOPO\_UPDATE debe converger antes del primer \texttt{sendUser}.
+
+\subseccion{Análisis anticipado}
+
+La latencia en cadena de tres saltos estará dominada por scheduling Android en \texttt{Dispatchers.IO} y contención Wi-Fi en banda 2.4~GHz compartida. Se espera $T_{\mathrm{data\_e2e}}$ superior al umbral ideal de 500~ms en hardware clase~$\alpha$, sin invalidar la hipótesis H3 (conectividad lógica multisalto).
+
+\seccion{EXP-04 — Unión tardía de nodo ISLAND}
+
+\subseccion{Procedimiento}
+
+Con A$\leftrightarrow$B operativos $\geq 60$~s, encender C en modo ISLAND con \texttt{\_pct-seek}. B responde JOIN\_OFFER; C completa STA y JOIN. Verificar que SSID de A y B no cambian (RF-14).
+
+\subseccion{Resultados parciales}
+
+Procedimiento especificado; JOIN\_OFFER wire parcialmente implementado. Análisis: la unión tardía es crítica para escenarios post-desastre donde nodos se encienden de forma asíncrona; el diseño GO persistente en cada nodo evita reconfiguración de SSID raíz.
+
+\seccion{EXP-05 — Caída de nodo puente}
+
+\subseccion{Procedimiento}
+
+Topología A $\leftarrow$ B $\leftarrow$ C. Apagar aplicación o radio de B. C transita a ISLAND; A recibe NODE\_DOWN. C re-JOIN directo a A si alcanza radio. Medir $T_{\mathrm{reconfig}}$ y estabilidad de \texttt{session\_epoch}.
+
+\subseccion{Métricas teóricas}
+
+$T_{\mathrm{reconfig}} \leq 15\,000$~ms; epoch estable en conversación activa (H5).
+
+\subseccion{Análisis}
+
+La caída de BRIDGE es el escenario de mayor valor para continuidad lógica post-desastre. El mecanismo de STALE routes + reconexión upstream implementado en Sprint~4 aborda el caso; falta evidencia numérica de defensa. Se recomienda repetir con carga de mensajes activa durante apagado de B.
+
+\seccion{EXP-06 — ISLAND cerca de LEAF}
+
+Nodo C ISLAND entra en radio de LEAF L (A $\leftarrow$ B $\leftarrow$ L). L detecta \texttt{\_pct-seek} de C y actúa como ofertante sin reiniciar GO. Valida diseño homogéneo GO en todos los roles. Estado: especificado; prueba física pendiente.
+
+\seccion{Análisis de restricciones de plataforma observadas en desarrollo}
+
+Durante los cuatro sprints se confirmaron restricciones documentadas en \texttt{02-platform-constraints.md}: (1)~el framework Android no expone reenvío IP en user space — todo multisalto ocurre en aplicación; (2)~Wi-Fi Direct y STA compiten por antena en 2.4~GHz, introduciendo latencia en re-STA post-\texttt{createGroup}; (3)~Samsung y Vivo difieren en tiempos de \texttt{removeGroup}/\texttt{createGroup} (A24 típicamente 2--4~s, Y21s 3--6~s); (4)~el límite de TXT DNS-SD (~198 bytes) impide empaquetar credenciales y metadatos extensos — diseño híbrido TXT + HELLO TCP.
+
+Estas restricciones no invalidan el protocolo pero explican variabilidad en $T_{\mathrm{join}}$ entre fabricantes y la necesidad de umbrales generosos (15~s) en criterios de aceptación.
+
+\seccion{Análisis integrado de logs de laboratorio}
+
+La etiqueta \texttt{PctMesh} concentra evidencia diagnóstica. Patrones identificados:
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{5.5cm}p{7.5cm}@{}}
+\hline
+\textbf{Patrón en log} & \textbf{Interpretación} \\
+\hline
+\texttt{pct=0 candidatos=0} con peers P2P & Escaneo prematuro; aumentar delay o reordenar \texttt{start()} \\
+\texttt{local=192.168.49.1 remote=192.168.49.1} & Self-connect; aplicar \texttt{bindSocket} STA \\
+UUID con ceros en cola & TXT truncado; usar HELLO wire \\
+\texttt{EOF} tras HELLO & Accept loop cerrado; revisar ciclo de vida L2 \\
+\texttt{[L2] GO ready — accept :8765/:8766} & Bootstrap L2 downstream OK \\
+\texttt{upstream connect} + IP padre & Enlace STA correcto \\
+\hline
+\end{tabular}
+\end{center}
+
+\seccion{Contraste con objetivos específicos del anteproyecto}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.8cm}p{7.5cm}p{2.7cm}@{}}
+\hline
+\textbf{OE} & \textbf{Objetivo específico} & \textbf{Grado cumplimiento} \\
+\hline
+OE1 & Diseño protocolo distribuido & Alto — spec + lib \\
+OE2 & Estructura comunicación lógica & Alto — L2/L3 \\
+OE3 & Implementación Android demo & Alto — APK + UI \\
+OE4 & Evaluación laboratorio & Medio — EXP en curso \\
+\hline
+\end{tabular}
+\end{center}
+
+OE4 permanece en grado medio hasta completar mediciones de $T_{\mathrm{join}}$, $T_{\mathrm{reconfig}}$ y cadena tres nodos con evidencia tabulada.
+
+\seccion{Discusión general}
+
+Los resultados confirman la viabilidad técnica de operar un protocolo multisalto en capa de aplicación sobre Wi-Fi Direct GO + STA legacy sin \emph{root}, alineado con H1 y parcialmente con H2. La complejidad real reside en la coexistencia de interfaces (P2P + infraestructura) y en las condiciones de carrera del bootstrap DNS-SD, no en el modelo lógico de tablas y reenvío.
+
+Frente al estado del arte (AODV, OLSR, Meshtastic, Bridgefy), PCT sacrifica integración en capa de red a cambio de despliegue en hardware retail. Frente a prototipos académicos UDP-only, el canal dual TCP aporta confiabilidad y separación control/datos verificable en logs.
+
+Las limitaciones reconocidas — latencia del SO, UUID efímero por sesión, ausencia de cifrado E2E, validación parcial de EXP-03..06 por restricción de hardware — delimitan el alcance de las conclusiones finales, las cuales se consolidarán cuando las métricas empíricas estén completas.
+
+\seccion{Síntesis de resultados}
+
+El desarrollo por sprints produjo una biblioteca funcional con trazabilidad documentación$\rightarrow$código$\rightarrow$experimento. Las pruebas unitarias PASS garantizan integridad del wire format. EXP-01 y EXP-02 aportan evidencia cualitativa de enlace vecino; EXP-03..06 tienen implementación de soporte en L3/L4 y procedimientos definidos, pendientes de mediciones numéricas finales en sesión de defensa. El análisis de logs proporciona un marco reproducible para depuración y extensión futura del protocolo PCT.

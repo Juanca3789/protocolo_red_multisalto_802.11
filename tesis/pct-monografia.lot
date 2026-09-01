@@ -1,11 +1,15 @@
 \babel@toc {spanish}{}\relax 
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces Comparativa del estado del arte}}{7}{}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Experimentos de validación (matriz EXP)}}{10}{}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {4.1}{\ignorespaces Objetos de red upstream y downstream}}{12}{}%
-\contentsline {table}{\numberline {4.2}{\ignorespaces Módulos principales de \texttt {lib-pct-core}}}{13}{}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Resultados EXP-01 (completar mediciones)}}{14}{}%
+\contentsline {table}{\numberline {5.1}{\ignorespaces Análisis de soluciones frente al protocolo propuesto}}{10}{}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Resumen de incrementos, actividades y entregables}}{12}{}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {7.1}{\ignorespaces Objetos de red upstream y downstream en nodo BRIDGE}}{14}{}%
+\contentsline {table}{\numberline {7.2}{\ignorespaces Resultados EXP-01}}{14}{}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
