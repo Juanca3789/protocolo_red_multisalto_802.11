@@ -55,7 +55,11 @@ internal class PctNodeImpl : PctNode {
             nodeConfig = NodeConfig(nodeId = nodeUuid, nodeName = Build.MODEL),
             context = app,
         )
-        val link = LinkLayer(nodeUuid.pctHex(), physical, app)
+        val link = LinkLayer(
+            nodeId = nodeUuid.pctHex(),
+            uplinks = physical.uplink,
+            onLoop = { physical.dropSta() },
+        )
         layer = physical
         linkLayer = link
         _snapshot.value = physical.snapshot.value.copy(nodeId = nodeUuid.pctHex())

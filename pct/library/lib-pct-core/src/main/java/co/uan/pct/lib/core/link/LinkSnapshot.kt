@@ -6,7 +6,6 @@ data class LinkSnapshot(
     val depth: Int = 0,
     val neighbors: List<String> = emptyList(),
     val routes: List<RouteView> = emptyList(),
-    val foreign: List<String> = emptyList(),
     val dataOpen: Int = 0,
     val action: String = "",
 )

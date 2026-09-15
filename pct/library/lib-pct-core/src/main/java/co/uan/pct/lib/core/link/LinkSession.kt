@@ -9,20 +9,27 @@ import java.net.InetAddress
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * Un TCP de control `:8765` con un vecino.
+ *
+ * [isParent] lo fija el sentido del socket: si yo conecté (tenía la STA), el vecino es mi padre;
+ * si lo acepté en mi GO, es mi hijo. No hay negociación de sentido.
+ */
 internal class LinkSession(
     val socket: Socket,
-    val remoteIp: String,
+    val isParent: Boolean,
 ) {
-    /** Dirección remota con ámbito (para `fe80::%iface`); es la que se usa para abrir datos. */
     val remoteAddress: InetAddress = socket.inetAddress
-
-    fun sameHost(other: InetAddress): Boolean =
-        remoteAddress.address.contentEquals(other.address)
+    val remoteIp: String = remoteAddress.hostAddress ?: remoteAddress.toString()
 
     var peerNid: String? = null
     var peerDepth: Int = 0
     var peerTree: String? = null
+
+    @Volatile
     var lastRxMs: Long = System.currentTimeMillis()
+
+    @Volatile
     var dataOpen: Boolean = false
 
     private val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8))
@@ -36,14 +43,17 @@ internal class LinkSession(
         writer.flush()
     }
 
+    /** Siguiente línea decodificada; null al cerrarse el socket. Líneas ajenas se ignoran. */
     fun read(): CtrlMsg? {
-        val line = try {
-            reader.readLine()
-        } catch (_: IOException) {
-            return null
-        } ?: return null
-        lastRxMs = System.currentTimeMillis()
-        return CtrlCodec.decode(line)
+        while (true) {
+            val line = try {
+                reader.readLine()
+            } catch (_: IOException) {
+                return null
+            } ?: return null
+            lastRxMs = System.currentTimeMillis()
+            CtrlCodec.decode(line)?.let { return it }
+        }
     }
 
     fun nextPing(): CtrlMsg.Ping = CtrlMsg.Ping(pingSeq.incrementAndGet())

@@ -2,10 +2,7 @@ package co.uan.pct.lib.core.net
 
 import co.uan.pct.lib.core.link.CtrlCodec
 import co.uan.pct.lib.core.link.CtrlMsg
-import co.uan.pct.lib.core.link.EventWalks
 import co.uan.pct.lib.core.link.RouteTable
-import co.uan.pct.lib.core.link.WalkArrival
-import co.uan.pct.lib.core.link.WalkKind
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import kotlinx.coroutines.CoroutineScope
@@ -180,28 +177,6 @@ class TwoDeviceLabTest {
         assertArrayEquals("stream".toByteArray(), got.payload)
         aToB.close()
         bIn.close()
-    }
-
-    @Test
-    fun twoObserversSameWhoMergeNotStorm() {
-        val hops = { _: String -> 1 }
-        val phoneA = EventWalks()
-        val phoneB = EventWalks()
-        phoneA.begin(WalkKind.Who, NID_C, NID_A, 0, listOf(NID_B), null, hops)
-        phoneB.begin(WalkKind.Who, NID_C, NID_B, 0, listOf(NID_A), null, hops)
-        val atA = phoneA.arrive(
-            WalkKind.Who, NID_C, NID_B, NID_B, 1,
-            listOf(NID_B), null, hops,
-        )
-        val atB = phoneB.arrive(
-            WalkKind.Who, NID_C, NID_A, NID_A, 1,
-            listOf(NID_A), null, hops,
-        )
-        val aStops = atA is WalkArrival.Keep || atA is WalkArrival.Loop
-        val bStops = atB is WalkArrival.Keep || atB is WalkArrival.Loop || atB is WalkArrival.Yield
-        assertTrue("A no duplica la onda", aStops)
-        assertTrue("B no duplica la onda", bStops)
-        assertFalse(atA is WalkArrival.Fresh && atB is WalkArrival.Fresh)
     }
 
     private fun handshakeLikePhones(a: Node, b: Node) {

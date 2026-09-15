@@ -1,6 +1,7 @@
 package co.uan.pct.lib.core.link
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,33 +18,28 @@ class CtrlCodecTest {
     }
 
     @Test
-    fun seeRoundTripKeepsSsid() {
-        val msg = CtrlMsg.See("nid32", "DIRECT-ab Phone", "psk;x", 0, 1, "aa")
-        val decoded = CtrlCodec.decode(CtrlCodec.encode(msg)) as CtrlMsg.See
-        assertEquals("DIRECT-ab Phone", decoded.ssid)
-        assertEquals("psk;x", decoded.psk)
-        assertEquals(1, decoded.hops)
-        assertEquals("aa", decoded.origin)
+    fun hiWithoutRoutesRoundTrip() {
+        val decoded = CtrlCodec.decode(CtrlCodec.encode(CtrlMsg.Hi("aa", 0, "aa", emptyList()))) as CtrlMsg.Hi
+        assertEquals("aa", decoded.nid)
+        assertTrue(decoded.routes.isEmpty())
     }
 
     @Test
-    fun whoRoundTrip() {
-        val line = CtrlCodec.encode(CtrlMsg.Who("Who:n", "n", 3, 1, "aa"))
-        assertTrue(line.startsWith("WHO"))
-        val decoded = CtrlCodec.decode(line) as CtrlMsg.Who
-        assertEquals(3, decoded.ttl)
-        assertEquals(1, decoded.hops)
-        assertEquals("aa", decoded.origin)
+    fun tabRoundTrip() {
+        val decoded = CtrlCodec.decode(CtrlCodec.encode(CtrlMsg.Tab(listOf("bb" to 1)))) as CtrlMsg.Tab
+        assertEquals(listOf("bb" to 1), decoded.routes)
     }
 
     @Test
-    fun mergeAndGoingRoundTrip() {
-        val merge = CtrlCodec.decode(CtrlCodec.encode(CtrlMsg.Merge("See:cc"))) as CtrlMsg.Merge
-        assertEquals("See:cc", merge.eid)
-        val going = CtrlCodec.decode(
-            CtrlCodec.encode(CtrlMsg.Going("cc", "bb", 2, "aa")),
-        ) as CtrlMsg.Going
-        assertEquals("bb", going.by)
-        assertEquals(2, going.hops)
+    fun pingPongRoundTrip() {
+        assertEquals(7, (CtrlCodec.decode(CtrlCodec.encode(CtrlMsg.Ping(7))) as CtrlMsg.Ping).seq)
+        assertEquals(9, (CtrlCodec.decode(CtrlCodec.encode(CtrlMsg.Pong(9))) as CtrlMsg.Pong).seq)
+    }
+
+    @Test
+    fun unknownLineIsIgnored() {
+        assertNull(CtrlCodec.decode("HOLA mundo"))
+        assertNull(CtrlCodec.decode(""))
+        assertNull(CtrlCodec.decode("   "))
     }
 }

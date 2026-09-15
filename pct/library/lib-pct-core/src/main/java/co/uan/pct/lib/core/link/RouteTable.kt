@@ -51,6 +51,7 @@ class RouteTable(val self: String) {
     fun installNeighbor(nid: String, ip: String, asParent: Boolean) {
         rows[nid] = RouteRow(nid, nid, 1, ip)
         if (asParent) parentId = nid
+        else if (parentId == nid) parentId = null
     }
 
     fun hopOf(nid: String): Int = find(nid)?.hops ?: 99

@@ -7,14 +7,29 @@ import java.net.InetAddress
 import java.net.NetworkInterface
 
 /**
- * Dirección del GO padre a la que abrir el TCP de control.
+ * Construye el [Uplink] hacia el GO padre a partir de la red STA activa.
  *
  * No sirve `192.168.49.1`: todo GO de Android es `.1`, así que en cuanto este nodo levanta su
  * propio grupo, `192.168.49.1` pasa a ser una dirección local suya y los paquetes al padre se
- * entregan en `lo`. La `fe80::` del padre no choca: lleva el ámbito de la interfaz STA y Android
- * la forma por EUI-64 desde la MAC de la interfaz de grupo, que es el BSSID que ve la STA.
+ * entregan en `lo`. La `fe80::` del padre sí sirve: lleva el ámbito de la interfaz STA y Android
+ * la forma por EUI-64 desde la MAC de la interfaz de grupo del padre, que es el BSSID que ve la STA.
+ * Además cada socket se ata a la red STA (`Network.bindSocket`) para no salir por el GO propio.
  */
-fun staGateway(connectivity: ConnectivityManager, network: Network, bssid: String?): InetAddress {
+fun buildUplink(
+    connectivity: ConnectivityManager,
+    network: Network,
+    bssid: String?,
+    parentNid: String?,
+): Uplink {
+    val address = staGateway(connectivity, network, bssid)
+    return Uplink(
+        parentNid = parentNid,
+        address = address,
+        bind = { socket -> runCatching { network.bindSocket(socket) } },
+    )
+}
+
+internal fun staGateway(connectivity: ConnectivityManager, network: Network, bssid: String?): InetAddress {
     val props = connectivity.getLinkProperties(network)
     val linkLocal = bssid?.let { eui64LinkLocal(it) }
     if (linkLocal != null) {

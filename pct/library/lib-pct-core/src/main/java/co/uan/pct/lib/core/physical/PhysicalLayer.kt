@@ -8,6 +8,8 @@ import android.net.wifi.WifiManager
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pManager
 import android.util.Log
+import co.uan.pct.lib.core.link.Uplink
+import co.uan.pct.lib.core.link.buildUplink
 import androidx.annotation.RequiresPermission
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -55,6 +57,10 @@ class PhysicalLayer(
 
     private val _snapshot = MutableStateFlow(PhysicalSnapshot(nodeId = nodeConfig.nodeId.pctHex()))
     val snapshot: StateFlow<PhysicalSnapshot> = _snapshot.asStateFlow()
+
+    /** Lo único que L2 necesita de L1: hay STA al padre → aquí va a dónde abrir el TCP; null si no. */
+    private val _uplink = MutableStateFlow<Uplink?>(null)
+    val uplink: StateFlow<Uplink?> = _uplink.asStateFlow()
 
     private val _logs = MutableSharedFlow<String>(extraBufferCapacity = 64)
     val logs: SharedFlow<String> = _logs.asSharedFlow()
@@ -161,6 +167,7 @@ class PhysicalLayer(
         }
         staLink.disconnect()
         activeStaNetwork = null
+        _uplink.value = null
         parent = null
         lastAdvertised = null
         repeat(4) { intento ->
@@ -318,6 +325,8 @@ class PhysicalLayer(
         discoverParentsLocked(timeouts.scanMs)
 
     private suspend fun discoverParentsLocked(esperaMs: Long): List<ServiceStructure> {
+        // Ventana de escucha nueva: lo visto antes pudo apagarse. No arrastrar anuncios viejos.
+        radioSeen.clear()
         dns.onTxtRecord = txt@{ txt, device ->
             val parsed = decodeDnsSdTxt(txt, device.deviceAddress) ?: run {
                 log("anuncio ilegible claves=${txt.keys}")
@@ -429,6 +438,7 @@ class PhysicalLayer(
             }
             parent = parentPeer
             activeStaNetwork = net
+            _uplink.value = buildUplink(connectivityManager, net, staBssid, parentPeer.nid.pctHex())
             ingest(listOf(parentPeer), staToPeer = true)
             lastAdvertised = null
             runCatching { ensureGo() }.onFailure { log("grupo propio tras asociarme: ${it.message}") }
@@ -451,6 +461,7 @@ class PhysicalLayer(
         staLink.disconnect()
         parent = null
         activeStaNetwork = null
+        _uplink.value = null
         lastAdvertised = null
         scope.launch {
             advertiseCurrent()
@@ -531,6 +542,7 @@ class PhysicalLayer(
         log("perdí al padre")
         parent = null
         activeStaNetwork = null
+        _uplink.value = null
         lastAdvertised = null
         scope.launch {
             advertiseCurrent()
