@@ -18,5 +18,9 @@ data class Exp01UiState(
     val dnsSdDiagnostics: DnsSdDiagnostics = DnsSdDiagnostics(),
     val autoActivateAfterJoin: Boolean = true,
     val broadDiscovery: Boolean = false,
+    val goWanted: Boolean = false,
+    val advertiseWanted: Boolean = false,
+    val discoverWanted: Boolean = false,
+    val staWanted: Boolean = false,
     val logs: List<String> = emptyList(),
 )

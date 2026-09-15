@@ -49,6 +49,10 @@ class LegacyStaRepository(
             }
 
             override fun onUnavailable() {
+                networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
+                networkCallback = null
+                connectivityManager.bindProcessToNetwork(null)
+                activeNetwork = null
                 _staState.value = StaState.Error("No se pudo asociar a ${record.goSsid}")
             }
 

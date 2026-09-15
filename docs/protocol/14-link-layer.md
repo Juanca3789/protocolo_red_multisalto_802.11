@@ -1,233 +1,92 @@
-# 14 — Capa de enlace (L2): vecindad padre–hijo
+# 14 — Capa 2: TCP, sentido de la arista y tabla de rutas
 
-**Versión:** 0.2.1-draft  
-**Prerequisito:** [04-link-model-go-legacy.md](04-link-model-go-legacy.md), [06-tcp-messages.md](06-tcp-messages.md)
-
----
-
-## 1. Alcance
-
-La capa de enlace PCT define:
-
-- Cómo dos nodos **directamente conectados** (padre GO ↔ hijo STA) establecen un **canal de control confiable**.
-- Cómo cada nodo mantiene un **registro de vecinos** con UUID, IP local y socket.
-- Qué mensajes son **solo L2** (no reenviables más allá del vecino).
-
-**Fuera de alcance L2:** reenvío a destinos no adyacentes (L3), DNS-SD bootstrap (L1).
+**Versión:** 0.3.0-draft  
+**Prerequisito:** [04-link-model-go-legacy.md](04-link-model-go-legacy.md) (radio). L1 ya hizo GO + STA.
 
 ---
 
-## 2. Principios
+## 1. En una frase
 
-| # | Regla |
+L1 deja dos radios juntos. L2 abre **un TCP en `:8765`**, acuerda **quién es padre y quién hijo**, y por ese mismo socket **mantiene la tabla de rutas**. Las IP no salen de L2. Arriba solo se ven `node_id`. Cuando la tabla ya conoce al vecino, se puede abrir `:8766` para el tráfico de usuario.
+
+Sin catálogo de mensajes de unión. Sin UDP. Sin MAC como identidad.
+
+---
+
+## 2. Tres pasos
+
+```
+STA asociado (L1)
+    → TCP :8765  (quien tiene STA conecta al gateway del GO padre, p. ej. 192.168.49.1)
+    → negociar sentido de la arista
+    → hablar: quién soy, sigo vivo, estas son las rutas que conozco
+    → (después) TCP :8766 para usuario, usando la tabla
+```
+
+Todo nodo con GO escucha `:8765` (y más tarde `:8766`) en su SoftAP. El hijo inicia el connect. Si los dos hicieron STA a la vez, los dos pueden conectar: L2 elige **un** sentido y L1 suelta el STA que no toca.
+
+### Sentido de la arista
+
+Misma componente, primer contacto (mismo depth): **menor `node_id` = padre**.  
+Si ya hay árbol: el de menor depth/hop es padre.
+
+Un `UPSTREAM` y 0..N `DOWNSTREAM`. No dos padres.
+
+---
+
+## 3. Tabla de rutas (vive en L2)
+
+L2 es quien tiene el socket y por tanto la **IP local del vecino**. Esa IP no se publica hacia L3 ni a la app: solo sirve para escribir en el TCP correcto.
+
+Vista hacia arriba (solo nids):
+
+| destino (`node_id`) | siguiente salto (`node_id`) | saltos |
+|---|---|---|
+| vecino directo | él mismo | 1 |
+| yo | — | 0 |
+| alguien más allá | el vecino por el que se llega | 2..N |
+
+Por debajo, L2 guarda junto al siguiente salto: IP, `:8765`, y si ya hay `:8766`. Eso no cruza el límite de capa.
+
+Cada vecino, por `:8765`, manda un resumen de *destinos que conozco → saltos*. El receptor fusiona: “para ir a X, el siguiente soy yo hacia ese vecino”. Anti-ciclo: no instalar una ruta que vuelva por donde vino; tope de saltos 7.
+
+Cadena A (padre) — B — C:
+
+- En A: C se alcanza pasando por B.
+- En B: A y C son vecinos (o uno de ellos a 1 salto).
+- En C: A se alcanza pasando por B.
+
+Si se cae el TCP o el STA, L2 borra al vecino y las rutas que solo existían por él. L1 puede volver a buscar; L2 no toca el GO.
+
+---
+
+## 4. Puerto de usuario `:8766`
+
+Cuando hay fila en la tabla para un vecino directo y `:8765` está vivo, se abre `:8766` hacia esa misma IP. Ahí solo va payload de aplicación (chat, etc.).
+
+Si `:8766` se cae, se reabre usando la IP que L2 ya tiene en la tabla. No se reinicia el nodo ni el GO.
+
+Control (`:8765`) y usuario (`:8766`) no comparten socket: en Android un único TCP mezcla mal keep-alive y ráfagas.
+
+---
+
+## 5. Qué hay que implementar (y nada más)
+
+1. Listen `:8765` en el GO; connect `:8765` tras STA.
+2. Intercambio mínimo: `node_id` + depth + “estas rutas”.
+3. Acordar padre/hijo; un STA de más → pedirle a L1 que lo cierre.
+4. Tabla nid → siguiente nid (IP solo interna).
+5. Keep-alive en `:8765`; silencio → vecino muerto.
+6. Luego listen/connect `:8766` para los vecinos de la tabla.
+
+Si el scan L1 ve un `node_id` **que no está en la tabla**, no se une al instante: se investiga con un **DFS por vecinos** (`WHO`). Un salto de 1 es más cercano que un nodo que solo aparece a 2..N en la tabla; el token no se inunda: cada nodo pregunta a **un** vecino (hijos antes que el padre), espera, y sigue. Si dos ondas del **mismo evento** se cruzan, se hace **merge**: se queda la más cercana (menos hops desde su origen; empate: menor `node_id`) y la otra cede (`MERGE`) para no armar tormenta. Si alguien lo conoce, era anuncio residual. Si nadie, es **otro árbol** (`SEE` / `GOING` recorren igual). Un brazo **con radio** se ofrece; no lo decide un root. Si hace falta, `CLIMB` es local (mis hijos → mi padre). No se asume que el otro “arrancó mal”.
+
+---
+
+## 6. Fuera de L2
+
+| No | Dónde |
 |---|---|
-| E1 | Solo existen enlaces **upstream** (1) y **downstream** (N). |
-| E2 | El **hijo** inicia TCP hacia el padre tras `StaState.Connected`. |
-| E3 | Identidad autoritativa = `sender_nid` en HELLO; nunca MAC SoftAP. |
-| E4 | Prohibido depender de UDP broadcast para registro crítico. |
-| E5 | Cada par padre–hijo mantiene **dos** sockets TCP independientes (§2.1). |
-| E6 | Tráfico **control** y **usuario** nunca comparten el mismo socket. |
-| E7 | La caída del canal usuario **no** implica reiniciar el nodo; el canal control reabre datos. |
-
-### 2.1 Dos canales TCP por vecino (normativo)
-
-Android no garantiza fairness ni backpressure predecible en un único `Socket`. Mezclar PING/TOPO periódicos con ráfagas `type=user` satura el enlace y puede bloquear el control.
-
-| Canal | Puerto default | Tráfico | Prioridad |
-|---|---|---|---|
-| **Control** | `8765` (`PCT_CTRL_PORT`) | HELLO, JOIN_*, PING/PONG, TOPO_UPDATE, NODE_DOWN, señalización canal datos | Alta — siempre activo |
-| **Datos (usuario)** | `8766` (`PCT_DATA_PORT`) | Solo frames `type=user` (DATA multisalto) | Normal — aislable |
-
-Constantes: [12-theoretical-constants.md](12-theoretical-constants.md) §1.
-
-**Invariante:** un `NeighborRecord` tiene `ctrl_socket` **y** `data_socket` (este último puede estar `CLOSED` mientras control sigue `OPEN`).
-
----
-
-## 3. NeighborRegistry
-
-Estructura local en cada nodo (no se serializa tal cual; se deriva de HELLO/JOIN).
-
-### 3.1 Entrada `NeighborRecord`
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `neighbor_nid` | UUID (16 B) | Identidad del vecino |
-| `iface` | enum | `UPSTREAM` \| `DOWNSTREAM` |
-| `local_ip` | IPv4 | IP del vecino **vista desde este nodo** |
-| `ctrl_port` | uint16 | Default `8765` |
-| `data_port` | uint16 | Default `8766` |
-| `ctrl_socket` | opaco | TCP control (persistente) |
-| `data_socket` | opaco | TCP datos usuario (puede ser null) |
-| `data_channel_state` | enum | `CLOSED` \| `OPEN` \| `RECONNECTING` |
-| `role` | enum | Rol remoto (ROOT/BRIDGE/LEAF) |
-| `hop` | uint8 | Hop lógico anunciado por el vecino |
-| `last_ctrl_ms` | uint64 | Último PING/PONG/HELLO |
-| `last_data_ms` | uint64 | Último frame usuario (si aplica) |
-
-### 3.2 Invariantes
-
-- `UPSTREAM`: 0 o 1 registro (padre).
-- `DOWNSTREAM`: 0..N (hijos directos).
-- `local_ip` upstream en hijo: gateway típico del SoftAP padre (p. ej. `192.168.49.1`).
-- `local_ip` downstream en padre: IP DHCP asignada al hijo en **mi** GO (p. ej. `192.168.49.2`).
-
-**Nota Android:** la IP del hijo puede obtenerse tras HELLO + reverse connect o campo extendido en JOIN_COMMIT (ver §5).
-
----
-
-## 4. Secuencia de establecimiento L2
-
-```mermaid
-sequenceDiagram
-    participant Parent as Padre_GO
-    participant Child as Hijo_STA
-
-    Note over Parent,Child: L1 ya completado (STA asociado)
-
-    Child->>Parent: TCP ctrl connect :8765
-    Child->>Parent: HELLO (control)
-    Parent->>Child: HELLO (control)
-    Parent->>Parent: NeighborRegistry ctrl OPEN
-    Child->>Child: NeighborRegistry ctrl OPEN
-    Child->>Parent: JOIN_COMMIT (control)
-    Parent->>Child: DATA_CHANNEL_OPEN :8766 (control)
-    Child->>Parent: TCP data connect :8766
-    Child->>Parent: DATA_CHANNEL_ACK (control)
-    Parent->>Child: TOPO_UPDATE (control)
-    Child->>Parent: TOPO_UPDATE (control)
-    Note over Parent,Child: Tráfico user solo por :8766
-```
-
-### 4.1 Orden obligatorio
-
-1. L1: STA connected.
-2. L2: **Canal control** TCP `:8765` + HELLO bidireccional.
-3. L2: JOIN_COMMIT (control).
-4. L2: Negociación **canal datos** `:8766` vía mensajes control (§5.2).
-5. L2→L3: TOPO_UPDATE inicial (solo canal control).
-
----
-
-## 5. Mensajes L2 (catálogo)
-
-### 5.1 Solo canal control (`:8765`)
-
-| msg_type | Nombre | Dirección | Propósito |
-|---|---|---|---|
-| 0x01 | HELLO | ↔ | Identidad, rol, hop, capabilities |
-| 0x05 | JOIN_COMMIT | Hijo → Padre | Confirmación post-STA |
-| 0x07 | PING | ↔ | Keepalive control |
-| 0x08 | PONG | ↔ | Respuesta keepalive |
-| 0x06 | TOPO_UPDATE | ↔ vecino | Sincronización rutas L3 |
-| 0x09 | NODE_DOWN | ↔ vecino | Vecino caído |
-| 0x0D | DATA_CHANNEL_OPEN | Padre → Hijo | Invitar connect `:8766` |
-| 0x0E | DATA_CHANNEL_ACK | Hijo → Padre | Canal datos listo |
-| 0x0F | DATA_CHANNEL_RESET | ↔ | Forzar reopen canal datos |
-
-Wire format binario base: [06-tcp-messages.md](06-tcp-messages.md). Tipos `0x0D..0x0F` definidos en Incremento 2.
-
-### 5.2 Negociación canal datos
-
-1. Tras JOIN_COMMIT, el **padre** envía `DATA_CHANNEL_OPEN` (puerto, epoch opcional) por **control**.
-2. El **hijo** abre TCP `:8766` hacia `parent_ip`.
-3. El hijo confirma con `DATA_CHANNEL_ACK` por **control**.
-4. Ambos marcan `data_channel_state = OPEN`.
-
-Si el socket datos falla (timeout, `IOException`, cola llena):
-
-1. Marcar `data_channel_state = RECONNECTING`; **mantener control OPEN**.
-2. Emisor de recuperación envía `DATA_CHANNEL_RESET` por control.
-3. Repetir pasos 1–3 **sin** tocar GO/STA/DNS-SD.
-
-**Prohibido** enviar `TOPO_UPDATE`, `PING` o `HELLO` por el socket `:8766`.
-
-### 5.3 Solo canal datos (`:8766`)
-
-| msg_type | Nombre | Propósito |
-|---|---|---|
-| 0x0A | DATA | Envelope `type=user` (local o reenviado L3) |
-
-El ForwardWorker **solo** escribe/lee DATA en `data_socket`.
-
-### 5.4 HELLO y UUID en UI
-
-Tras HELLO válido:
-
-- Padre: `TopologySnapshot.children[].nodeId = sender_nid`.
-- Hijo: `TopologySnapshot.parent.nodeId = sender_nid` del padre.
-
-**Prohibido** mostrar MAC de `WifiP2pGroup.clientList` como identidad primaria en UI cuando L2 está activo.
-
----
-
-## 6. Servidores TCP en cada nodo
-
-Todo nodo GO escucha **dos** puertos en la interfaz del SoftAP:
-
-| ServerSocket | Puerto | Worker |
-|---|---|---|
-| `ControlAcceptWorker` | `8765` | Sesión control; HELLO; nunca DATA usuario |
-| `DataAcceptWorker` | `8766` | Solo frames DATA (`type=user`) |
-
-```
-ControlAcceptWorker:
-  loop accept(:8765)
-    spawn ControlPeerSession(ip)
-    esperar HELLO → NeighborRegistry (ctrl)
-
-DataAcceptWorker:
-  loop accept(:8766)
-    spawn DataPeerSession(ip)
-    asociar a NeighborRecord existente (ctrl ya registró UUID)
-    marcar data_channel_state = OPEN
-```
-
-El hijo, tras STA:
-
-1. Connect activo `:8765` (control).
-2. Tras `DATA_CHANNEL_OPEN`, connect activo `:8766` (datos).
-
-**Android:** dos `ServerSocket`, dos bucles de lectura independientes (corrutinas/hilos separados). Cola de envío control acotada (p. ej. 32 frames); cola datos con límite mayor pero **descartable** bajo presión (no afecta control).
-
----
-
-## 7. Deprecación: UDP HELLO (prototipo 1.1.5)
-
-El prototipo actual envía `PCT1|HELLO|nid|role|hop` por UDP broadcast. Problemas:
-
-| Problema | Impacto |
-|---|---|
-| Broadcast no confiable | Padre no siempre recibe |
-| Sin ACK | UI queda en MAC |
-| Mezcla L1/L2 | Confunde capas |
-| Sin socket persistente | No hay base para L3 |
-
-**Plan:** mantener UDP solo como fallback de laboratorio hasta que TCP L2 esté verificado; luego eliminar.
-
----
-
-## 8. LinkWorker (concepto de implementación)
-
-| Worker | Socket | Responsabilidad |
-|---|---|---|
-| `ControlAcceptWorker` | `:8765` | Accept + HELLO/JOIN |
-| `DataAcceptWorker` | `:8766` | Accept DATA |
-| `ControlConnectWorker` | `:8765` | Connect upstream tras STA |
-| `DataConnectWorker` | `:8766` | Connect tras DATA_CHANNEL_OPEN |
-| `ControlKeepaliveWorker` | `:8765` | PING/PONG; detecta muerte control |
-| `DataChannelRecoveryWorker` | control → reopen data | DATA_CHANNEL_RESET |
-| `NeighborRegistry` | — | Fuente única de verdad L2 |
-
-**Regla de concurrencia:** mutación de `NeighborRegistry` en un solo actor. Lectura de `data_socket` nunca bloquea el loop de control.
-
----
-
-## 9. Criterios de aceptación L2
-
-- [ ] Tras join, padre lista hijos con **UUID idéntico** al `node_id` del hijo.
-- [ ] Hijo lista padre con UUID del registro DNS-SD/TCP.
-- [ ] No se requiere UDP broadcast para el caso feliz.
-- [ ] Desconexión STA → NODE_DOWN + limpieza NeighborRegistry downstream/upstream.
-- [ ] Ráfaga de mensajes usuario **no** retrasa PING/TOPO en canal control.
-- [ ] Caída socket `:8766` se recupera vía control **sin** reiniciar bootstrap L1.
+| `createGroup`, DNS-SD, STA | L1 |
+| Reenviar bytes de usuario a un nid no vecino | L3 pide a L2 “envía a este nid”; L2 usa la tabla y `:8766` |
+| Elegir SoftAP / PSK | L1 |

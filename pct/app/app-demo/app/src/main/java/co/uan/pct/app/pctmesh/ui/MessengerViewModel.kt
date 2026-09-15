@@ -4,18 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.uan.pct.app.pctmesh.PctMeshApplication
-import co.uan.pct.lib.core.api.NeighborIface
-import co.uan.pct.lib.core.api.PctEvent
-import co.uan.pct.lib.core.api.PctNode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 data class ChatLine(
     val fromNid: String,
@@ -34,85 +31,65 @@ data class MessengerUiState(
     val destinationNid: String = "",
     val messageText: String = "",
     val messages: List<ChatLine> = emptyList(),
-    val destinationOptions: List<DestOption> = emptyList(),
+    val destinations: List<DestOption> = emptyList(),
+    val hint: String = "La tabla aún no tiene destinos",
 )
 
 class MessengerViewModel(
     private val app: PctMeshApplication,
 ) : ViewModel() {
 
-    private fun node(): PctNode = app.acquireNode()
-
     private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.US)
-
-    private val _uiState = MutableStateFlow(MessengerUiState(nodeId = node().nodeId))
+    private val _uiState = MutableStateFlow(MessengerUiState())
     val uiState: StateFlow<MessengerUiState> = _uiState.asStateFlow()
 
     init {
-        bindFlows(node())
-    }
+        val node = app.acquireNode()
+        _uiState.update { it.copy(nodeId = node.nodeId) }
 
-    private fun bindFlows(pctNode: PctNode) {
-        viewModelScope.launch {
-            combine(
-                pctNode.neighbors,
-                pctNode.routes,
-                pctNode.topology,
-            ) { neighbors, routes, topo ->
-                buildDestinationOptions(pctNode.nodeId, neighbors, routes, topo)
-            }.collect { options ->
-                _uiState.update { it.copy(destinationOptions = options, nodeId = pctNode.nodeId) }
-            }
-        }
-        viewModelScope.launch {
-            pctNode.events.collect { event ->
-                when (event) {
-                    is PctEvent.UserMessage -> {
-                        val line = ChatLine(
-                            fromNid = event.fromNid,
-                            text = event.text,
-                            isOutgoing = event.fromNid == pctNode.nodeId,
-                            timestamp = timeFmt.format(Date()),
-                        )
-                        _uiState.update { state ->
-                            state.copy(messages = state.messages + line)
-                        }
-                    }
-                    else -> Unit
+        node.link.onEach { link ->
+            val self = node.nodeId
+            val dests = link.routes
+                .filter { it.dest != self && it.hops > 0 }
+                .distinctBy { it.dest.take(8) }
+                .map { row ->
+                    DestOption(
+                        label = "${row.dest.take(8)} · ${row.hops} salto(s) vía ${row.next.take(8)}",
+                        nid = row.dest,
+                    )
                 }
+            _uiState.update { state ->
+                val chosen = when {
+                    state.destinationNid.length == 32 -> state.destinationNid
+                    dests.any { it.nid == state.destinationNid } -> state.destinationNid
+                    state.destinationNid.isEmpty() && dests.isNotEmpty() -> dests.first().nid
+                    else -> state.destinationNid
+                }
+                state.copy(
+                    nodeId = self,
+                    destinations = dests,
+                    destinationNid = chosen,
+                    hint = if (dests.isEmpty()) {
+                        "Nadie en la tabla — espera a que se una el árbol"
+                    } else {
+                        "El mensaje va al identificador, no a una IP"
+                    },
+                )
             }
-        }
-    }
+        }.launchIn(viewModelScope)
 
-    private fun buildDestinationOptions(
-        selfNid: String,
-        neighbors: co.uan.pct.lib.core.api.NeighborSnapshot,
-        routes: co.uan.pct.lib.core.api.RouteSnapshot,
-        topo: co.uan.pct.lib.core.api.TopologySnapshot,
-    ): List<DestOption> {
-        val seen = LinkedHashSet<String>()
-        val out = ArrayList<DestOption>()
-
-        fun add(label: String, nid: String) {
-            if (nid.isBlank() || nid == selfNid || !seen.add(nid)) return
-            out.add(DestOption(label, nid))
-        }
-
-        neighbors.neighbors.forEach { n ->
-            val tag = when (n.iface) {
-                NeighborIface.UPSTREAM -> "padre"
-                NeighborIface.DOWNSTREAM -> "hijo"
+        node.inbox.onEach { msg ->
+            _uiState.update {
+                it.copy(
+                    messages = it.messages + ChatLine(
+                        fromNid = msg.from,
+                        text = msg.payload.toString(Charsets.UTF_8),
+                        isOutgoing = false,
+                        timestamp = timeFmt.format(Date()),
+                    ),
+                )
             }
-            add("Vecino $tag · ${n.role}", n.neighborNid)
-        }
-        topo.children.forEach { child ->
-            add("Topología hijo · ${child.role}", child.nodeId)
-        }
-        topo.parent?.let { add("Topología padre · ${it.role}", it.nodeId) }
-        routes.entries.forEach { r ->
-            add("Ruta hop=${r.hopCount}", r.destinationUuid)
-        }
-        return out
+        }.launchIn(viewModelScope)
     }
 
     fun onDestinationChange(value: String) {
@@ -134,22 +111,24 @@ class MessengerViewModel(
         val dest = state.destinationNid.trim()
         val text = state.messageText.trim()
         if (dest.length != 32 || text.isEmpty()) return
-
-        val pctNode = node()
-        val line = ChatLine(
-            fromNid = pctNode.nodeId,
-            text = text,
-            isOutgoing = true,
-            timestamp = timeFmt.format(Date()),
-        )
-        _uiState.update { it.copy(messages = it.messages + line, messageText = "") }
-        pctNode.sendUser(dest, text.toByteArray(Charsets.UTF_8))
+        val node = app.acquireNode()
+        _uiState.update {
+            it.copy(
+                messages = it.messages + ChatLine(
+                    fromNid = node.nodeId,
+                    text = text,
+                    isOutgoing = true,
+                    timestamp = timeFmt.format(Date()),
+                ),
+                messageText = "",
+            )
+        }
+        node.sendUser(dest, text.toByteArray(Charsets.UTF_8))
     }
 
     class Factory(private val app: PctMeshApplication) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MessengerViewModel(app) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            MessengerViewModel(app) as T
     }
 }

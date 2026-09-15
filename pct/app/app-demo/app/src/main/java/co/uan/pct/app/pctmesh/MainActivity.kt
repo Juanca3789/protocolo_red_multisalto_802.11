@@ -26,6 +26,15 @@ import co.uan.pct.lib.core.PctPermissions
 import com.uan.designsystem.uikit.components.UanAppBar
 import com.uan.designsystem.uikit.theme.UanTheme
 
+/**
+ * Activity principal: pestaña **Debug** (MeshScreen) y **Chat** (MessengerScreen).
+ *
+ * 1. [PctMeshApplication.acquireNode] en onCreate.
+ * 2. Pide permisos → [MeshViewModel.startMesh] → `PctNode.start()`.
+ * 3. onDestroy (finishing): [PctMeshApplication.releaseNode].
+ *
+ * Ver [GuiaAppDemo] para protocolo de prueba en dos teléfonos.
+ */
 class MainActivity : ComponentActivity() {
 
     private val app get() = application as PctMeshApplication
@@ -52,7 +61,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             UanTheme {
                 var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-                val tabs = listOf("Debug", "Chat")
+                val tabs = listOf("Red", "Chat")
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(

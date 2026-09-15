@@ -7,6 +7,12 @@ import co.uan.pct.lib.core.PctCore
 import co.uan.pct.lib.core.api.PctNode
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * Mantiene **una** instancia de [PctNode] por proceso Android.
+ *
+ * - [acquireNode]: create + init si hace falta (rotación de pantalla, reentrada).
+ * - [releaseNode]: close() para liberar Wi‑Fi Direct y no dejar grupo zombi.
+ */
 class PctMeshApplication : Application() {
 
     private val activityCount = AtomicInteger(0)

@@ -25,6 +25,8 @@ class DnsSdRepository(
     private val p2p: P2pChannelHolder,
 ) : P2pEventListener {
 
+    private val force = P2pForceClear(p2p)
+
     companion object {
         private const val SERVICE_TYPE = "_pct-ctrl._tcp"
         private const val DEFAULT_CTRL_PORT = 8765
@@ -64,7 +66,11 @@ class DnsSdRepository(
     private var serviceRequest: WifiP2pDnsSdServiceRequest? = null
     private var localService: WifiP2pDnsSdServiceInfo? = null
 
+    private var wantAdvertise = false
+    private var advertiseAttempts = 0
     private var discoveryActive = false
+    private var stoppingDiscovery = false
+    private var discoveryAttempts = 0
     private var serviceRequestAdded = false
     private var broadFilter = false
     private var servicesSeen = 0
@@ -205,6 +211,8 @@ class DnsSdRepository(
         goPsk: String,
         role: String = "ROOT",
     ) {
+        wantAdvertise = true
+        advertiseAttempts = 0
         if (goSsid.isBlank()) {
             emitEvent("FALLO anuncio: go_ssid vacío — pulsa Info GO")
             return
@@ -252,8 +260,15 @@ class DnsSdRepository(
             record,
         )
         localService = serviceInfo
+        wantAdvertise = true
         p2p.manager.addLocalService(p2p.channel, serviceInfo, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
+                if (!wantAdvertise) {
+                    emitEvent("addLocalService tardío; mato el anuncio")
+                    clearLocalServicesNow()
+                    return
+                }
+                advertiseAttempts = 0
                 _isAdvertising.value = true
                 emitEvent(
                     "Anuncio activo: $SERVICE_TYPE instance=$instanceName " +
@@ -265,31 +280,32 @@ class DnsSdRepository(
             }
 
             override fun onFailure(reason: Int) {
+                if (!wantAdvertise) {
+                    localService = null
+                    return
+                }
+                val label = P2pFailureReasons.describe(reason)
+                if (reason == WifiP2pManager.BUSY || reason == WifiP2pManager.ERROR) {
+                    recoverAdvertise("addLocalService $label", instanceName, nid, goSsid, goPsk, role)
+                    return
+                }
                 localService = null
-                emitEvent("addLocalService falló: ${P2pFailureReasons.describe(reason)}")
+                emitEvent("addLocalService falló: $label")
             }
         })
     }
 
     fun stopAdvertising() {
-        if (!_isAdvertising.value && localService == null) {
-            emitEvent("Sin anuncio activo que detener")
-            return
-        }
-        p2p.manager.clearLocalServices(p2p.channel, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {
-                localService = null
-                _isAdvertising.value = false
-                emitEvent("Anuncio $SERVICE_TYPE detenido")
-            }
-
-            override fun onFailure(reason: Int) {
-                emitEvent("clearLocalServices falló: ${P2pFailureReasons.describe(reason)}")
-            }
-        })
+        wantAdvertise = false
+        advertiseAttempts = 0
+        _isAdvertising.value = false
+        localService = null
+        clearLocalServicesNow()
     }
 
     fun startDiscovery(useBroadFilter: Boolean = false) {
+        stoppingDiscovery = false
+        discoveryAttempts = 0
         stopDiscoveryHandlers()
         discoveryActive = true
         discoveryLocked = false
@@ -319,24 +335,15 @@ class DnsSdRepository(
         }
         emitEvent("Iniciando búsqueda (filtro=$filterLabel)…")
         emitEvent("Paso 1: discoverPeers()…")
-        p2p.manager.discoverPeers(p2p.channel, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {
-                emitEvent("discoverPeers OK; esperando peers (máx ${T_PEER_WAIT_MS}ms)…")
-                updateDiagnostics(phase = DiscoveryPhase.WaitingPeers) {
-                    it.copy(hint = "Paso 2/3: esperando PEERS_CHANGED con ≥1 peer")
-                }
-                mainHandler.postDelayed(peerWaitTimeout, T_PEER_WAIT_MS)
-            }
-
-            override fun onFailure(reason: Int) {
-                failDiscovery("discoverPeers falló: ${P2pFailureReasons.describe(reason)}")
-            }
-        })
+        pulseDiscoverPeers()
     }
 
     fun stopDiscovery() {
+        stoppingDiscovery = true
         discoveryLocked = true
         discoveryActive = false
+        discoveryAttempts = 0
+        _isDiscovering.value = false
         stopDiscoveryHandlers()
         serviceRequest?.let { request ->
             p2p.manager.removeServiceRequest(p2p.channel, request, null)
@@ -345,7 +352,7 @@ class DnsSdRepository(
         serviceRequestAdded = false
         p2p.manager.stopPeerDiscovery(p2p.channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
-                _isDiscovering.value = false
+                stoppingDiscovery = false
                 updateDiagnostics(phase = DiscoveryPhase.Idle) {
                     DnsSdDiagnostics(hint = "Búsqueda detenida")
                 }
@@ -357,8 +364,13 @@ class DnsSdRepository(
             }
 
             override fun onFailure(reason: Int) {
-                _isDiscovering.value = false
-                emitEvent("stopPeerDiscovery falló: ${P2pFailureReasons.describe(reason)}")
+                emitEvent("stopPeerDiscovery ${P2pFailureReasons.describe(reason)}; mato cola")
+                force.free(killGroup = false, killLocalServices = false) {
+                    stoppingDiscovery = false
+                    if (!discoveryActive) {
+                        p2p.manager.stopPeerDiscovery(p2p.channel, null)
+                    }
+                }
             }
         })
     }
@@ -370,6 +382,10 @@ class DnsSdRepository(
                 val started = state == WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED
                 val label = if (started) "STARTED" else "STOPPED"
                 emitEvent("Broadcast P2P scan: $label (sesión activa=$discoveryActive)")
+                if (!started && discoveryActive && !stoppingDiscovery) {
+                    _isDiscovering.value = false
+                    emitEvent("Scan cayó; queda pedido de búsqueda (se relanza al liberar)")
+                }
             }
 
             WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
@@ -384,6 +400,7 @@ class DnsSdRepository(
                             "Peers visibles: $count → $names"
                         },
                     )
+                    if (!discoveryActive) return@requestPeers
                     if (discoveryActive && !serviceRequestAdded && count > 0) {
                         mainHandler.removeCallbacks(peerWaitTimeout)
                         emitEvent("Peer detectado; lanzando discoverServices sin esperar timeout")
@@ -395,14 +412,14 @@ class DnsSdRepository(
     }
 
     fun close() {
+        wantAdvertise = false
         discoveryActive = false
+        stoppingDiscovery = true
         stopDiscoveryHandlers()
         serviceRequest?.let { request ->
             p2p.manager.removeServiceRequest(p2p.channel, request, null)
         }
-        if (_isAdvertising.value) {
-            stopAdvertising()
-        }
+        stopAdvertising()
         p2p.removeListener(this)
     }
 
@@ -435,13 +452,19 @@ class DnsSdRepository(
             request,
             object : WifiP2pManager.ActionListener {
                 override fun onSuccess() {
+                    if (!discoveryActive) return
                     emitEvent("addServiceRequest OK")
                     runDiscoverServices(isRetry = false)
                 }
 
                 override fun onFailure(reason: Int) {
                     serviceRequestAdded = false
-                    failDiscovery("addServiceRequest falló: ${P2pFailureReasons.describe(reason)}")
+                    val label = P2pFailureReasons.describe(reason)
+                    if (discoveryActive && (reason == WifiP2pManager.BUSY || reason == WifiP2pManager.ERROR)) {
+                        recoverDiscovery("addServiceRequest $label")
+                        return
+                    }
+                    failDiscovery("addServiceRequest falló: $label")
                 }
             },
         )
@@ -461,15 +484,24 @@ class DnsSdRepository(
         val label = if (isRetry) "rediscover #$discoveryTicks" else "discoverServices"
         p2p.manager.discoverServices(p2p.channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
+                if (!discoveryActive) {
+                    p2p.manager.stopPeerDiscovery(p2p.channel, null)
+                    return
+                }
+                discoveryAttempts = 0
                 emitEvent("$label OK (peers=${_diagnostics.value.peerCount} srv_vistos=$servicesSeen)")
                 scheduleRediscoverTick()
             }
 
             override fun onFailure(reason: Int) {
-                emitEvent("$label falló: ${P2pFailureReasons.describe(reason)}")
-                if (discoveryActive) {
-                    scheduleRediscoverTick()
+                val desc = P2pFailureReasons.describe(reason)
+                emitEvent("$label falló: $desc")
+                if (!discoveryActive) return
+                if (reason == WifiP2pManager.BUSY || reason == WifiP2pManager.ERROR) {
+                    recoverDiscovery("$label $desc")
+                    return
                 }
+                scheduleRediscoverTick()
             }
         })
     }
@@ -649,6 +681,91 @@ class DnsSdRepository(
             it.copy(hint = message)
         }
         emitEvent("FALLO búsqueda: $message")
+    }
+
+    private fun pulseDiscoverPeers() {
+        if (!discoveryActive) return
+        p2p.manager.discoverPeers(p2p.channel, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() {
+                if (!discoveryActive) {
+                    p2p.manager.stopPeerDiscovery(p2p.channel, null)
+                    return
+                }
+                discoveryAttempts = 0
+                emitEvent("discoverPeers OK; esperando peers (máx ${T_PEER_WAIT_MS}ms)…")
+                updateDiagnostics(phase = DiscoveryPhase.WaitingPeers) {
+                    it.copy(hint = "Paso 2/3: esperando PEERS_CHANGED con ≥1 peer")
+                }
+                mainHandler.removeCallbacks(peerWaitTimeout)
+                mainHandler.postDelayed(peerWaitTimeout, T_PEER_WAIT_MS)
+            }
+
+            override fun onFailure(reason: Int) {
+                if (!discoveryActive) return
+                val label = P2pFailureReasons.describe(reason)
+                if (reason == WifiP2pManager.BUSY || reason == WifiP2pManager.ERROR) {
+                    recoverDiscovery("discoverPeers $label")
+                    return
+                }
+                failDiscovery("discoverPeers falló: $label")
+            }
+        })
+    }
+
+    private fun recoverDiscovery(why: String) {
+        discoveryAttempts++
+        if (!discoveryActive) return
+        if (discoveryAttempts > 6) {
+            failDiscovery("$why; no pude liberar la cola")
+            return
+        }
+        emitEvent("$why; mato cola P2P (GO no se toca) y reintento ($discoveryAttempts)")
+        force.free(killGroup = false, killLocalServices = false) {
+            if (!discoveryActive) return@free
+            serviceRequestAdded = false
+            serviceRequest = null
+            pulseDiscoverPeers()
+        }
+    }
+
+    private fun recoverAdvertise(
+        why: String,
+        instanceName: String,
+        nid: String,
+        goSsid: String,
+        goPsk: String,
+        role: String,
+    ) {
+        advertiseAttempts++
+        if (!wantAdvertise) return
+        if (advertiseAttempts > 6) {
+            emitEvent("$why; no pude anunciar")
+            return
+        }
+        emitEvent("$why; mato cola P2P (GO no se toca) y reintento anuncio ($advertiseAttempts)")
+        force.free(killGroup = false, killLocalServices = true) {
+            if (wantAdvertise) publishAdvertise(instanceName, nid, goSsid, goPsk, role)
+        }
+    }
+
+    private fun clearLocalServicesNow() {
+        p2p.manager.clearLocalServices(p2p.channel, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() {
+                localService = null
+                _isAdvertising.value = false
+                emitEvent("Anuncio $SERVICE_TYPE detenido")
+            }
+
+            override fun onFailure(reason: Int) {
+                emitEvent("clearLocalServices ${P2pFailureReasons.describe(reason)}; mato cola")
+                force.free(killGroup = false, killLocalServices = true) {
+                    if (!wantAdvertise) {
+                        localService = null
+                        _isAdvertising.value = false
+                    }
+                }
+            }
+        })
     }
 
     private fun updateDiagnostics(

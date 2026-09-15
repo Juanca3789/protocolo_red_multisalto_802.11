@@ -4,122 +4,144 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.uan.pct.app.pctmesh.PctMeshApplication
-import co.uan.pct.lib.core.api.NodePhase
-import co.uan.pct.lib.core.api.PctDebugSnapshot
-import co.uan.pct.lib.core.api.PctEvent
-import co.uan.pct.lib.core.api.PctNode
-import co.uan.pct.lib.core.api.NeighborSnapshot
-import co.uan.pct.lib.core.api.RouteSnapshot
-import co.uan.pct.lib.core.api.TopologySnapshot
+import co.uan.pct.lib.core.physical.pctHex
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+
+data class RouteLine(
+    val dest: String,
+    val next: String,
+    val hops: Int,
+)
+
+data class RadioLine(
+    val nid: String,
+    val ssid: String,
+    val inTable: Boolean,
+)
 
 data class MeshUiState(
     val nodeId: String = "",
-    val phase: NodePhase = NodePhase.ISLAND,
-    val topology: TopologySnapshot? = null,
-    val debug: PctDebugSnapshot = PctDebugSnapshot(),
-    val neighbors: NeighborSnapshot = NeighborSnapshot(),
-    val routes: RouteSnapshot = RouteSnapshot(),
+    val statusLine: String = "Esperando permisos",
+    val parentId: String? = null,
+    val depth: Int = 0,
+    val neighborCount: Int = 0,
+    val goOn: Boolean = false,
+    val goSsid: String = "",
+    val staOn: Boolean = false,
+    val searching: Boolean = false,
+    val routes: List<RouteLine> = emptyList(),
+    val radio: List<RadioLine> = emptyList(),
+    val foreign: List<String> = emptyList(),
+    val action: String = "",
     val logs: List<String> = emptyList(),
     val lastError: String? = null,
     val started: Boolean = false,
 )
 
+@OptIn(ExperimentalUuidApi::class)
 class MeshViewModel(
     private val app: PctMeshApplication,
 ) : ViewModel() {
 
-    private fun node() = app.acquireNode()
-
-    private val timeFmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
-
-    private val _uiState = MutableStateFlow(MeshUiState(nodeId = node().nodeId))
+    private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.US)
+    private val _uiState = MutableStateFlow(MeshUiState())
     val uiState: StateFlow<MeshUiState> = _uiState.asStateFlow()
 
     init {
-        bindFlows(node())
-    }
-
-    private fun bindFlows(pctNode: PctNode) {
-        viewModelScope.launch {
-            pctNode.phase.collect { phase ->
-                _uiState.update { it.copy(phase = phase) }
+        val node = app.acquireNode()
+        combine(node.snapshot, node.link) { snap, link ->
+            val nid = node.nodeId.ifBlank { snap.nodeId }
+            val parent = link.parentId ?: snap.parentId
+            val routes = link.routes
+                .filter { it.dest != nid && it.hops > 0 }
+                .map { RouteLine(it.dest, it.next, it.hops) }
+            val inTable = routes.map { it.dest.take(8) }.toSet() +
+                link.neighbors.map { it.take(8) }.toSet()
+            val radio = snap.graph.peers.values.map { peer ->
+                val peerNid = peer.service.nid.pctHex()
+                RadioLine(
+                    nid = peerNid,
+                    ssid = peer.service.goSsid,
+                    inTable = peerNid.take(8) in inTable,
+                )
             }
-        }
-        viewModelScope.launch {
-            pctNode.topology.collect { topo ->
-                _uiState.update { it.copy(topology = topo, nodeId = pctNode.nodeId) }
-            }
-        }
-        viewModelScope.launch {
-            pctNode.debug.collect { debug ->
-                _uiState.update { it.copy(debug = debug, nodeId = pctNode.nodeId) }
-            }
-        }
-        viewModelScope.launch {
-            pctNode.neighbors.collect { neighbors ->
-                _uiState.update { it.copy(neighbors = neighbors) }
-            }
-        }
-        viewModelScope.launch {
-            pctNode.routes.collect { routes ->
-                _uiState.update { it.copy(routes = routes) }
-            }
-        }
-        viewModelScope.launch {
-            pctNode.events.collect { event ->
-                when (event) {
-                    is PctEvent.Log -> appendLog(event.message)
-                    is PctEvent.Error -> {
-                        appendLog("ERROR: ${event.message}")
-                        _uiState.update { it.copy(lastError = event.message) }
-                    }
-                    is PctEvent.PhaseChanged -> appendLog("FASE → ${event.phase}")
-                    is PctEvent.TopologyChanged -> {
-                        appendLog(
-                            "topo self=${event.snapshot.self.role} " +
-                                "hijos=${event.snapshot.children.size} " +
-                                "dnsPeers=${event.snapshot.knownPeers.size}",
-                        )
-                        val role = event.snapshot.self.role
-                        if (role == "BRIDGE" || role == "ROOT") {
-                            _uiState.update { it.copy(lastError = null) }
-                        }
-                    }
-                    is PctEvent.UserMessage -> appendLog(
-                        "UserMessage from ${event.fromNid.take(8)}…: ${event.text}",
-                    )
+            val neighbors = link.neighbors.size
+            MeshUiState(
+                nodeId = nid,
+                statusLine = when {
+                    neighbors > 0 -> "En red · $neighbors vecino(s) · ${link.depth} salto(s)"
+                    snap.searching -> "Solo · buscando"
+                    else -> "Solo · grupo propio listo"
+                },
+                parentId = parent,
+                depth = link.depth,
+                neighborCount = neighbors,
+                goOn = snap.goReady,
+                goSsid = snap.goSsid,
+                staOn = snap.staConnected,
+                searching = snap.searching,
+                routes = routes,
+                radio = radio,
+                foreign = link.foreign,
+                action = link.action.ifBlank { snap.action },
+                logs = _uiState.value.logs,
+                lastError = _uiState.value.lastError,
+                started = _uiState.value.started,
+            )
+        }.onEach { derived ->
+            _uiState.update { current ->
+                val status = when {
+                    !current.started -> "Esperando permisos"
+                    else -> derived.statusLine
                 }
+                derived.copy(
+                    statusLine = status,
+                    logs = current.logs,
+                    lastError = current.lastError,
+                    started = current.started,
+                )
             }
-        }
+        }.launchIn(viewModelScope)
+
+        node.logs.onEach { message ->
+            val stamp = timeFmt.format(Date())
+            _uiState.update { state ->
+                state.copy(
+                    logs = (state.logs + "$stamp  $message").takeLast(40),
+                    lastError = if (
+                        message.contains("error", ignoreCase = true) ||
+                        message.contains("falló", ignoreCase = true)
+                    ) {
+                        message
+                    } else {
+                        state.lastError
+                    },
+                )
+            }
+        }.launchIn(viewModelScope)
     }
 
     fun startMesh() {
         if (_uiState.value.started) return
-        val pctNode = node()
-        _uiState.update { it.copy(started = true, nodeId = pctNode.nodeId, lastError = null) }
-        appendLog("UI: start() tras permisos")
-        pctNode.start()
-    }
-
-    private fun appendLog(message: String) {
-        val stamp = timeFmt.format(Date())
-        _uiState.update { state ->
-            state.copy(logs = (state.logs + "$stamp  $message").takeLast(40))
+        val node = app.acquireNode()
+        _uiState.update {
+            it.copy(started = true, nodeId = node.nodeId, lastError = null, statusLine = "Arrancando…")
         }
+        node.start()
     }
 
     class Factory(private val app: PctMeshApplication) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MeshViewModel(app) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = MeshViewModel(app) as T
     }
 }

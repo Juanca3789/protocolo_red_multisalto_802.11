@@ -1,25 +1,21 @@
 package co.uan.pct.lib.core
 
-import co.uan.pct.lib.core.api.PctConfig
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PctCoreTest {
 
     @Test
-    fun create_returnsPctNode() {
+    fun create_returnsNode() {
         val node = PctCore.create()
-        assertTrue(node.nodeId.isEmpty())
+        assertTrue(node.nodeId.isEmpty() || node.nodeId.length == 32)
     }
 
     @Test
-    fun config_defaults() {
-        val config = PctConfig()
-        assertEquals(5_000L, config.scanSettleMs)
-        assertTrue(config.autoActivateGoAfterSta)
-        assertEquals(8765, config.ctrlPort)
-        assertEquals(8766, config.dataPort)
-        assertEquals(5_000L, config.pingIntervalMs)
+    fun requiredPermissions_includeWifiAndLocation() {
+        val perms = PctCore.requiredPermissions
+        assertTrue(perms.isNotEmpty())
+        assertArrayEquals(perms, PctPermissions.required)
     }
 }

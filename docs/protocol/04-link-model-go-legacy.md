@@ -12,14 +12,18 @@
 
 ## 2. Tipos de enlace
 
-| Tipo | Dirección | Mecanismo | Identificador físico |
-|---|---|---|---|
+
+| Tipo               | Dirección    | Mecanismo                            | Identificador físico    |
+| ------------------ | ------------ | ------------------------------------ | ----------------------- |
 | **D** (downstream) | Padre → hijo | Hijo hace STA legacy al GO del padre | SSID + PSK del GO padre |
-| **L** (local) | Propio | `createGroup()` | SSID propio estable |
+| **L** (local)      | Propio       | `createGroup()`                      | SSID propio estable     |
+
 
 No existe enlace GM P2P en el perfil mínimo.
 
 ---
+
+
 
 ## 3. SSID estable del GO
 
@@ -47,77 +51,30 @@ epoch_network_secret: generado en ROOT al bootstrap (32 B aleatorios)
 
 ---
 
+
+
 ## 4. Secuencia: interconexión de dos GO
 
 ```
-Tiempo   GO-A (ROOT)                    GO-B (BRIDGE/LEAF)
+Tiempo   GO-A (escucha)                 GO-B (pulso de búsqueda)
 ──────   ───────────                    ──────────────────
  T0      createGroup()                  createGroup()
- T1      addLocalService(_pct-ctrl)     addLocalService(_pct-seek o _pct-ctrl)
- T2      discoverServices()             discoverServices()
- T3      —                              obtiene SSID/PSK de A (TXT o JOIN_OFFER)
- T4      —                              requestNetwork(SSID_A, PSK_A)
- T5      acepta STA legacy B            mantiene GO propio (hipótesis H1)
- T6      TCP HELLO ← B                  TCP HELLO → A
- T7      JOIN_ACK                       JOIN_COMMIT
+ T1      addLocalService(_pct-ctrl)     addLocalService(_pct-ctrl)
+ T2      NO discoverServices            discoverServices() (anuncio sigue)
+ T3      responde GAS/TXT               obtiene SSID/PSK de A
+ T4      —                              stopPeerDiscovery (vuelve a solo anunciar)
+ T5      —                              requestNetwork(SSID_A, PSK_A)
 ```
 
+Medido en Samsung (EXP-01):
+
+- **Sin GO**, `discoverServices` basta para ver TXT.
+- **Con GO**, el que busca **también tiene que anunciar**. GO + búsqueda sin anuncio no entrega TXT.
+- El otro **no puede estar buscando** a la vez: si los dos están en `discoverServices`, no hay TXT. Uno pulsa; el otro solo anuncia.
+
 ---
+
+
 
 ## 5. Escalado a N nodos y DAG
 
-### Árbol (perfil mínimo)
-
-Cada nodo tiene **como máximo un padre** (un STA legacy upstream activo).
-
-### DAG lógico (perfil extendido)
-
-- Físico: árbol.
-- Plano de control: múltiples entradas en tabla de rutas (`status=BACKUP`).
-- Anti-ciclos: `path_trace`, `hop_limit`, `path_seq`.
-
-### DAG físico (fuera alcance mínimo)
-
-Requiere dual-STA (`cap bit CAP_DUAL_STA`); no asumido en v0.1.
-
----
-
-## 6. Ventajas del modelo homogéneo GO
-
-| Escenario | Beneficio |
-|---|---|
-| ISLAND cerca de LEAF | LEAF ya anuncia `_pct-ctrl` / puede recibir `_pct-seek` |
-| Reconexión tras caída padre | Nodo sigue GO; solo re-asocia STA legacy |
-| Unión tardía | ROOT/BRIDGE no apagan DNS-SD al operar |
-| Evitar bloqueo GM→GO | Nunca se entra en rol GM |
-
----
-
-## 7. Mapa de interfaces por nodo BRIDGE
-
-```
-                    ┌─────────────────┐
-   legacy STA       │     Nodo B      │  P2P GO propio
-   ───────────────► │  (BRIDGE)       │  ◄─────────────── legacy STA hijos
-   hacia GO padre    │                 │
-                    └─────────────────┘
-   Interfaz UP       TCP socket padre    TCP sockets hijos   Interfaz DOWN
-```
-
-**NeighborMap (teórico):**
-
-```
-upstream:   { nid: parent, socket, iface: UPSTREAM }
-downstream: [ { nid: child_i, socket, iface: DOWNSTREAM }, ... ]
-```
-
----
-
-## 8. Prohibiciones normativas
-
-| Acción | Estado |
-|---|---|
-| `WifiP2pManager.connect()` para árbol | **PROHIBIDO** |
-| Cambiar SSID GO tras JOIN | **PROHIBIDO** |
-| Routing multisalto por IP kernel | **PROHIBIDO** |
-| UDP broadcast como canal crítico | **NO RECOMENDADO** |
