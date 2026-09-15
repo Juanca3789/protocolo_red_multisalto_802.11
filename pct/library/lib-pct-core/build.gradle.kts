@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "co.uan.pct"
-version = "2.1.19"
+version = "2.2.0"
 
 android {
     namespace = "co.uan.pct.lib.core"
@@ -47,7 +47,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "co.uan.pct"
             artifactId = "core"
-            version = "2.1.19"
+            version = "2.2.0"
 
             afterEvaluate {
                 from(components["release"])

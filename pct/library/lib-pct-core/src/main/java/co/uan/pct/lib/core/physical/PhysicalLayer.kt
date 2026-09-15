@@ -72,11 +72,10 @@ class PhysicalLayer(
         private set
     var goPsk: String = ""
         private set
-    var activeStaNetwork: Network? = null
-        private set
+    private var activeStaNetwork: Network? = null
 
     /** BSSID del GO padre mientras hay STA; null si no estoy asociado. */
-    val staBssid: String? get() = staLink.bssid
+    private val staBssid: String? get() = staLink.bssid
 
     private var parent: ServiceStructure? = null
     private var childCount: Int = 0
@@ -88,7 +87,7 @@ class PhysicalLayer(
     private var joining = false
     private val radioSeen = java.util.concurrent.ConcurrentHashMap<String, ServiceStructure>()
 
-    suspend fun <T> withP2p(block: suspend () -> T): T = p2pRuntime.withP2p(block)
+    private suspend fun <T> withP2p(block: suspend () -> T): T = p2pRuntime.withP2p(block)
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
     fun start() {
@@ -219,8 +218,8 @@ class PhysicalLayer(
         } else {
             log("pulso: ${candidatos.size} visibles")
         }
+        // El anuncio local sobrevive a la búsqueda; solo se reemplaza si cambió (hijos, padre).
         refreshChildCount()
-        lastAdvertised = null
         advertiseCurrent()
         setRunning()
         publish(
@@ -234,9 +233,6 @@ class PhysicalLayer(
         if (goSsid.isNotBlank() && goPsk.isNotBlank()) return
         withP2p { startGoLocked() }
     }
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
-    suspend fun startGo(): GoCredentials = withP2p { startGoLocked() }
 
     private suspend fun startGoLocked(): GoCredentials {
         val existing = wifiP2pManager.peekGroupInfo(channel)
@@ -319,10 +315,6 @@ class PhysicalLayer(
             null,
         )
     }
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
-    suspend fun discoverParents(): List<ServiceStructure> =
-        discoverParentsLocked(timeouts.scanMs)
 
     private suspend fun discoverParentsLocked(esperaMs: Long): List<ServiceStructure> {
         // Ventana de escucha nueva: lo visto antes pudo apagarse. No arrastrar anuncios viejos.
@@ -430,7 +422,7 @@ class PhysicalLayer(
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
-    suspend fun connectToParent(parentPeer: ServiceStructure): Network {
+    private suspend fun connectToParent(parentPeer: ServiceStructure): Network {
         joining = true
         try {
             val net = withTimeout(timeouts.staConnectMs) {
@@ -451,12 +443,7 @@ class PhysicalLayer(
         }
     }
 
-    fun parentCredentials(): GoCredentials? {
-        val p = parent ?: return null
-        if (p.goSsid.isBlank() || p.goPsk.isBlank()) return null
-        return GoCredentials(p.goSsid, p.goPsk)
-    }
-
+    /** L2 detectó bucle (los dos hicimos STA al otro) y a este nodo le toca quedarse de padre. */
     fun dropSta() {
         staLink.disconnect()
         parent = null
@@ -469,9 +456,6 @@ class PhysicalLayer(
         }
         log("solté al padre")
     }
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
-    suspend fun advertise(struct: ServiceStructure) = withP2p { advertiseLocked(struct) }
 
     private suspend fun advertiseCurrent() {
         if (goSsid.isBlank()) return
