@@ -69,10 +69,6 @@ fun MeshScreen(
                 )
             }
         }
-        if (state.foreign.isNotEmpty()) {
-            MonoLine("Otro árbol a la vista: ${state.foreign.joinToString { it.take(8) }}")
-        }
-
         val onlyRadio = state.radio.filter { !it.inTable }
         if (onlyRadio.isNotEmpty()) {
             SectionDivider()
