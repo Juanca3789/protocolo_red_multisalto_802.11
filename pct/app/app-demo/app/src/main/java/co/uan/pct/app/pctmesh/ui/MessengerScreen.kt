@@ -36,18 +36,19 @@ fun MessengerScreen(
         verticalArrangement = Arrangement.spacedBy(space.sm),
     ) {
         CopyableUuid(label = "Este nodo (toca para copiar)", uuid = state.nodeId)
+        Text(state.hint, style = tokens.typography.small, color = tokens.colors.muted)
 
         UanTextField(
             value = state.destinationNid,
             onValueChange = viewModel::onDestinationChange,
-            label = "UUID destino (32 hex)",
-            placeholder = "Selecciona abajo o pega nid completo",
+            label = "Destino (nid 32 hex)",
+            placeholder = "De la tabla o pega un nid",
             modifier = Modifier.fillMaxWidth(),
         )
 
-        if (state.destinationOptions.isNotEmpty()) {
+        if (state.destinations.isNotEmpty()) {
             Text(
-                text = "Destinos conocidos (toca para usar)",
+                text = "En la tabla",
                 style = tokens.typography.subtitle,
                 color = tokens.colors.primary,
             )
@@ -57,7 +58,7 @@ fun MessengerScreen(
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(space.xxxs),
             ) {
-                items(state.destinationOptions) { option ->
+                items(state.destinations, key = { it.nid }) { option ->
                     UanLists(
                         title = option.label,
                         supportingText = option.nid,
@@ -73,7 +74,7 @@ fun MessengerScreen(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(space.xs),
         ) {
-            items(state.messages) { line ->
+            items(state.messages, key = { "${it.timestamp}-${it.fromNid}-${it.text}" }) { line ->
                 ChatBubble(line)
             }
         }
@@ -102,16 +103,13 @@ fun MessengerScreen(
 private fun ChatBubble(line: ChatLine) {
     val tokens = UanThemeTokens.current
     val align = if (line.isOutgoing) Alignment.End else Alignment.Start
+    val from = if (line.isOutgoing) "yo" else line.fromNid.take(8)
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = align,
     ) {
         Text(
-            text = if (line.isOutgoing) {
-                "yo · ${line.timestamp}"
-            } else {
-                "${line.fromNid} · ${line.timestamp}"
-            },
+            text = "$from · ${line.timestamp}",
             style = tokens.typography.small,
             color = tokens.colors.muted,
             textAlign = if (line.isOutgoing) TextAlign.End else TextAlign.Start,

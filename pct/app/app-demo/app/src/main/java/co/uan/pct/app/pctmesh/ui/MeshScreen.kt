@@ -15,8 +15,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import co.uan.pct.lib.core.api.NodePhase
-import co.uan.pct.lib.core.api.TopologySnapshot
 import com.uan.designsystem.uikit.components.UanDivider
 import com.uan.designsystem.uikit.components.UanLists
 import com.uan.designsystem.uikit.theme.UanThemeTokens
@@ -29,12 +27,7 @@ fun MeshScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tokens = UanThemeTokens.current
     val space = tokens.spacing
-    val debug = state.debug
-    val topo = state.topology
     var logExpanded by rememberSaveable { mutableStateOf(false) }
-    val showCandidates = state.phase == NodePhase.SCANNING ||
-        state.phase == NodePhase.JOINING ||
-        debug.candidates.isNotEmpty()
 
     Column(
         modifier = modifier
@@ -43,102 +36,53 @@ fun MeshScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(space.xs),
     ) {
-        Text(
-            text = "Fase: ${state.phase.name}",
-            style = tokens.typography.section,
-            color = tokens.colors.primary,
-        )
-        CopyableUuid(
-            label = "nodeId (toca para copiar)",
-            uuid = state.nodeId,
-        )
-        Text(
-            text = debug.action,
-            style = tokens.typography.body,
-            color = tokens.colors.onSurface,
-        )
-        state.lastError?.let { err ->
-            Text(
-                text = err,
-                style = tokens.typography.body,
-                color = tokens.colors.error,
-            )
+        Text(state.statusLine, style = tokens.typography.section, color = tokens.colors.primary)
+        if (state.action.isNotBlank()) {
+            Text(state.action, style = tokens.typography.body, color = tokens.colors.onSurface)
         }
-
-        SectionDivider()
-        SectionTitle("Topología")
-        TopologyBlock(topo)
-
-        SectionDivider()
-        SectionTitle("Subistemas")
-        MonoLine("GO  ${debug.goStatus} · clients=${debug.goClientCount}")
-        debug.goSsid?.let { MonoLine("    $it") }
-        MonoLine("STA ${debug.staStatus}" + (debug.staSsid?.let { " · $it" } ?: ""))
-        MonoLine(
-            "DNS disc=${debug.dnsDiscovering} adv=${debug.dnsAdvertising} " +
-                "peers=${debug.peerCount} pct=${debug.pctCtrlSeen}",
-        )
-        if (debug.hint.isNotBlank()) {
-            MonoLine(debug.hint)
+        state.lastError?.let {
+            Text(it, style = tokens.typography.body, color = tokens.colors.error)
         }
-
-        MonoLine(
-            "L2 ctrl=${debug.ctrlLinksOpen} data=${debug.dataLinksOpen} " +
-                "recon=${debug.dataLinksReconnecting}",
-        )
+        CopyableUuid(label = "Este nodo (toca para copiar)", uuid = state.nodeId)
 
         SectionDivider()
-        SectionTitle("Vecinos L2 (${state.neighbors.neighbors.size})")
-        if (state.neighbors.neighbors.isEmpty()) {
-            MonoLine("(ninguno)")
+        SectionTitle("Enlace")
+        val parentId = state.parentId
+        if (parentId != null) {
+            CopyableUuid(label = "Padre", uuid = parentId)
         } else {
-            state.neighbors.neighbors.forEach { n ->
+            MonoLine("Sin padre")
+        }
+        MonoLine("Grupo propio ${if (state.goOn) "activo" else "no"} · padre ${if (state.staOn) "asociado" else "libre"}")
+        if (state.goSsid.isNotBlank()) MonoLine(state.goSsid)
+        if (state.searching) MonoLine("Buscando anuncios")
+
+        SectionDivider()
+        SectionTitle("Tabla de rutas (${state.routes.size})")
+        if (state.routes.isEmpty()) {
+            MonoLine("Solo tú. El chat usará esta tabla cuando haya vecinos.")
+        } else {
+            state.routes.forEach { row ->
                 CopyableUuid(
-                    label = "${n.iface.name} · ${n.role} · data=${n.dataChannelState.name} · ip=${n.localIp}",
-                    uuid = n.neighborNid,
+                    label = "destino · ${row.hops} salto(s) vía ${row.next.take(8)}",
+                    uuid = row.dest,
                 )
             }
         }
-
-        SectionDivider()
-        SectionTitle("Rutas L3 (${state.routes.entries.size})")
-        if (state.routes.entries.isEmpty()) {
-            MonoLine("(ninguna)")
-        } else {
-            state.routes.entries.forEach { r ->
-                CopyableUuid(
-                    label = "→ ${r.nextHopUuid} hop=${r.hopCount} ip=${r.nextHopLocalIp ?: "—"}",
-                    uuid = r.destinationUuid,
-                )
-            }
-        }
-
-        if (showCandidates) {
+        val onlyRadio = state.radio.filter { !it.inTable }
+        if (onlyRadio.isNotEmpty()) {
             SectionDivider()
-            SectionTitle("Candidatos (${debug.candidates.size})")
-            if (debug.candidates.isEmpty()) {
-                MonoLine("(ninguno)")
-            } else {
-                debug.candidates.forEachIndexed { i, c ->
-                    MonoLine("[$i] ${c.deviceName} · ${c.role} hop=${c.hop}")
-                    MonoLine("    ${c.goSsid}")
-                    CopyableUuid(label = "candidato nid", uuid = c.nodeId)
-                }
+            SectionTitle("Radio, aún no en tabla")
+            onlyRadio.forEach { seen ->
+                CopyableUuid(label = seen.ssid.ifBlank { "visto" }, uuid = seen.nid)
             }
         }
 
         SectionDivider()
         UanLists(
-            title = "Log (${state.logs.size}/40)",
+            title = "Log (${state.logs.size})",
             supportingText = if (logExpanded) "Ocultar" else "Mostrar",
             onClick = { logExpanded = !logExpanded },
-            trailingContent = {
-                Text(
-                    text = if (logExpanded) "▾" else "▸",
-                    style = tokens.typography.subtitle,
-                    color = tokens.colors.muted,
-                )
-            },
         )
         if (logExpanded) {
             Column(
@@ -146,11 +90,7 @@ fun MeshScreen(
                 verticalArrangement = Arrangement.spacedBy(space.xxxs),
             ) {
                 state.logs.asReversed().forEach { line ->
-                    Text(
-                        text = line,
-                        style = tokens.typography.small,
-                        color = tokens.colors.onSurface,
-                    )
+                    Text(line, style = tokens.typography.small, color = tokens.colors.onSurface)
                 }
             }
         }
@@ -160,9 +100,7 @@ fun MeshScreen(
 @Composable
 private fun SectionDivider() {
     val space = UanThemeTokens.current.spacing
-    UanDivider(
-        modifier = Modifier.padding(vertical = space.md),
-    )
+    UanDivider(modifier = Modifier.padding(vertical = space.sm))
 }
 
 @Composable
@@ -175,21 +113,4 @@ private fun SectionTitle(text: String) {
 private fun MonoLine(text: String) {
     val tokens = UanThemeTokens.current
     Text(text, style = tokens.typography.small, color = tokens.colors.onSurface)
-}
-
-@Composable
-private fun TopologyBlock(topo: TopologySnapshot?) {
-    if (topo == null) {
-        MonoLine("(sin snapshot)")
-        return
-    }
-    MonoLine("self  ${topo.self.role} hop=${topo.self.hop}")
-    topo.self.goSsid?.let { MonoLine("      $it") }
-    topo.parent?.let { parent ->
-        CopyableUuid(label = "padre · ${parent.role}", uuid = parent.nodeId)
-    } ?: MonoLine("padre ninguno")
-    MonoLine("hijos ${topo.children.size}")
-    topo.children.forEachIndexed { i, child ->
-        CopyableUuid(label = "hijo[$i] · ${child.role} hop=${child.hop}", uuid = child.nodeId)
-    }
 }

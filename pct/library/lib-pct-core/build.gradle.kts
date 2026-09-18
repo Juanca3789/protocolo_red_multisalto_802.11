@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "co.uan.pct"
-version = "2.0.9"
+version = "2.2.0"
 
 android {
     namespace = "co.uan.pct.lib.core"
@@ -21,6 +21,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 
     publishing {
@@ -43,7 +47,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "co.uan.pct"
             artifactId = "core"
-            version = "2.0.9"
+            version = "2.2.0"
 
             afterEvaluate {
                 from(components["release"])

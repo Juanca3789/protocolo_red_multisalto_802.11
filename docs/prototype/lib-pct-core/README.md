@@ -1,6 +1,6 @@
 # lib-pct-core — Estado vs capas formales
 
-**Artefacto Maven:** `co.uan.pct:core`  
+**Artefacto Maven:** `co.uan.pct:core` **2.2.0**  
 **Código:** `pct/library/lib-pct-core/`  
 **App demo:** `pct/app/app-demo/`
 
@@ -18,22 +18,43 @@
 
 ---
 
-## Qué funciona hoy (L1)
+## Qué hay hoy
 
-- Bootstrap automático: scan DNS-SD → join STA → GO BRIDGE | ROOT.
-- Teardown P2P al cerrar app (anti-zombi).
-- UI debug: fase, subistemas, topología, log.
-- Detección SoftAP `clientList` (MAC).
-- HELLO UDP provisional (`HelloHub`) — **a reemplazar** por TCP control `:8765` + canal datos `:8766`.
+### L1 — `physical/PhysicalLayer`
+
+- Arranque: limpia la radio (búsqueda, anuncio, STA, grupo residual) y busca **10 s sin grupo propio**.
+- Si llega un TXT `_pct-ctrl._tcp` con SSID/clave: STA al padre → publica un **`Uplink`** para L2 → levanta su propio grupo y anuncia.
+- Si no: crea grupo, anuncia y **se queda callado**. Pulso de 5 s en un instante al azar de cada minuto; si no tiene padre y ve TXT, se asocia.
+- `discoverServices` se relanza cada 5 s (cadencia del prototipo EXP-01); relanzarlo más seguido aborta las consultas GAS que traen el TXT.
+- El `Uplink` lleva la **`fe80::` del GO padre** (EUI-64 del BSSID, con ámbito de la interfaz STA) y ata cada socket a la red STA. Motivo: PC-08 en [../protocol/02-platform-constraints.md](../protocol/02-platform-constraints.md).
+- Cierre: tumba búsqueda, anuncio, STA y grupo (nada residual).
+
+### L2 — `link/LinkLayer` (sin Android)
+
+- Entrada: `StateFlow<Uplink?>` + `onLoop` (pedir a L1 soltar la STA). Nada de `Context`.
+- `:8765` control: `HI`, `TAB`, `PING`/`PONG`. Sentido de la arista = sentido del socket.
+- `:8766` datos: lo abre el hijo, empieza con 16 B de nid, se reabre mientras el control viva.
+- Tabla nid → siguiente nid (`RouteTable`), tope 7 saltos, gossip `TAB` al cambiar.
+- Bucle hijo↔hijo: el nid mayor es hijo; detectado por `Uplink.parentNid`, sin mensajes.
+
+### L3 — `net/MeshSocket`
+
+- Envío por nid: consulta la tabla, escribe en el `:8766` del siguiente salto. TTL 7. No devuelve el paquete por donde vino.
 
 ---
 
-## Brechas conocidas
+## Verificación
 
-1. **UUID hijos en UI:** no coincide con `node_id` real → NeighborRegistry + TCP control ([14-link-layer.md](../protocol/14-link-layer.md)).
-2. **Un solo canal (UDP):** spec exige **dos** TCP por vecino; user no debe competir con PING/TOPO.
-3. **Sin tabla de rutas:** `TopologySnapshot` es vista UI, no Forwarder.
-4. **Sin multisalto de datos:** no hay `ForwardWorker` en `:8766`.
+`./gradlew :lib-pct-core:testDebugUnitTest` (JVM, sin dispositivo):
+
+| Prueba | Qué cubre |
+|---|---|
+| `LinkLayerLoopbackTest` | el `LinkLayer` real sobre TCP en `127.0.0.1`: chat 2 nodos, cadena de 3 con reenvío, caída de vecino, bucle mutuo |
+| `Eui64Test` | `fe80::` a partir de los BSSID reales capturados en el A24 y el M23 |
+| `RouteTableTest`, `MeshSocketTest`, `TwoDeviceLabTest` | tabla, reenvío, enmarcado `:8766` |
+| `CtrlCodecTest`, `DnsSdTxtTest` | codificación de control y de TXT |
+
+Lo que solo se puede verificar con dos teléfonos: DNS-SD (TXT), asociación STA, `fe80::` real del GO. Protocolo de prueba en `GuiaAppDemo.kt`: A arranca y anuncia; B arranca cuando A ya anunció.
 
 ---
 

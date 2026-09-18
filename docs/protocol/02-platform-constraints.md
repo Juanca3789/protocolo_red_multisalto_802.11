@@ -15,6 +15,9 @@
 | PC-05 | GO P2P ≈ Soft AP en 192.168.49.0/24 | Routing lógico por `node_id`, no por IP global |
 | PC-06 | Multigrupo P2P nativo no soportado | Un GO propio + un STA legacy upstream máximo (perfil mínimo) |
 | PC-07 | Android 13+ requiere `NEARBY_WIFI_DEVICES` | Declarar en manifest con `neverForLocation` si aplica |
+| PC-08 | **Todo GO es `192.168.49.1`** y el rango DHCP no se puede cambiar. Un nodo que es GO **y** STA de otro GO tiene esa IP como local propia: la tabla `local` del kernel gana y los paquetes al padre se entregan en `lo`, no salen por `wlan0` | El TCP al padre va a su **`fe80::` con ámbito** de la interfaz STA (EUI-64 del BSSID) y el socket se ata a la red STA (`Network.bindSocket`). `192.168.49.1` queda solo como último recurso si el BSSID viene redactado |
+
+**PC-08, medido (A24 / M23, 2.1.18):** con IPv4 el TCP hijo→padre cae en cuanto el hijo levanta su propio grupo. En la literatura de redes Wi‑Fi Direct multigrupo es el problema central (arXiv 1601.00028; STREAM, 2024): se sortea con UDP multicast (2–6 Mbps) o con un nodo relé que no sea GO. Aquí no hace falta cambiar la topología: la interfaz de grupo de Android (`p2p-wlan0-0`, `p2p-p2p0-N`) recibe una `fe80::` EUI-64 de su MAC, y esa MAC es exactamente el BSSID que ve la STA del hijo (`WifiInfo.bssid` con `FLAG_INCLUDE_LOCATION_INFO`). Las direcciones de enlace local no chocan porque llevan el ámbito de la interfaz.
 
 ---
 

@@ -10,7 +10,7 @@ Diapositivas interactivas en **React + Vite** con tema de redes. Cada slide se c
 4. OSI emulado
 5. Mensajes dirigidos y broadcast
 6. Desconexiones en Bridge
-7. Unión de unrelated trees
+7. Unión de subárboles independientes
 8. Biblioteca lib-pct-core
 9. Resumen
 

@@ -139,7 +139,7 @@ accepts=1
 | BRIDGE | `_pct-ctrl` | `_pct-seek` |
 | LEAF (homogéneo) | `_pct-ctrl` | `_pct-seek` |
 
-**Invariante de unión dinámica:** todo miembro con `accepts=1` ejecuta `discoverServices()` cada `T_DISCOVER_MS` (teórico: 5000 ms).
+**Invariante de unión (medido EXP-01):** con GO, anuncio `_pct-ctrl` siempre arriba. `discoverServices` es un **pulso**: el buscador anuncia; el otro **no** busca en ese instante. Tras el pulso, `stopPeerDiscovery` y se queda solo anunciando. Sin GO, buscar solo sí encuentra.
 
 ---
 

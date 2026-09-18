@@ -29,6 +29,8 @@ class Exp01ViewModel(
     val uiState: StateFlow<Exp01UiState> = _uiState.asStateFlow()
 
     private var pendingAdvertiseRole: String? = null
+    private var wantAdvertise = false
+    private var wantDiscover = false
 
     init {
         appendLog("node_id=$nodeId")
@@ -41,10 +43,18 @@ class Exp01ViewModel(
             goRepository.goState.collect { go ->
                 _uiState.update { it.copy(goState = go) }
                 logGoState(go)
-                if (go is GoState.Ready && pendingAdvertiseRole != null) {
-                    val role = pendingAdvertiseRole!!
-                    pendingAdvertiseRole = null
-                    advertiseMember(role, go)
+                if (go is GoState.Ready) {
+                    if (pendingAdvertiseRole != null || wantAdvertise) {
+                        val role = pendingAdvertiseRole ?: memberRole()
+                        pendingAdvertiseRole = null
+                        advertiseMember(role, go)
+                    }
+                }
+                if ((go is GoState.Ready || go is GoState.Idle) &&
+                    wantDiscover &&
+                    !_uiState.value.isDiscovering
+                ) {
+                    dnsSdRepository.startDiscovery(useBroadFilter = _uiState.value.broadDiscovery)
                 }
                 refreshPhase()
             }
@@ -70,6 +80,11 @@ class Exp01ViewModel(
                 if (dnsSdRepository.selectedParent.value == null) {
                     _uiState.update { it.copy(discoveredService = record) }
                 }
+            }
+        }
+        viewModelScope.launch {
+            goRepository.events.collect { event ->
+                appendLog("GO: $event")
             }
         }
         viewModelScope.launch {
@@ -107,6 +122,61 @@ class Exp01ViewModel(
         }
     }
 
+    fun setGoEnabled(on: Boolean) {
+        _uiState.update { it.copy(goWanted = on) }
+        if (on) {
+            appendLog("GO ON")
+            goRepository.createGroup()
+        } else {
+            appendLog("GO OFF")
+            pendingAdvertiseRole = null
+            wantAdvertise = false
+            _uiState.update { it.copy(advertiseWanted = false) }
+            dnsSdRepository.stopAdvertising()
+            goRepository.removeGroup()
+        }
+    }
+
+    fun setAdvertisingEnabled(on: Boolean) {
+        wantAdvertise = on
+        _uiState.update { it.copy(advertiseWanted = on) }
+        if (!on) {
+            appendLog("Anuncio OFF")
+            dnsSdRepository.stopAdvertising()
+            pendingAdvertiseRole = null
+            return
+        }
+        appendLog("Anuncio ON")
+        val go = goRepository.goState.value
+        if (go is GoState.Ready) {
+            advertiseMember(memberRole(), go)
+        } else {
+            pendingAdvertiseRole = memberRole()
+            _uiState.update { it.copy(goWanted = true) }
+            if (go !is GoState.Creating) {
+                appendLog("Anuncio espera al GO; creando GO")
+                goRepository.createGroup()
+            }
+        }
+    }
+
+    fun setDiscoveryEnabled(on: Boolean) {
+        wantDiscover = on
+        _uiState.update { it.copy(discoverWanted = on) }
+        if (on) {
+            appendLog("Búsqueda ON (no toca GO ni anuncio)")
+            dnsSdRepository.startDiscovery(useBroadFilter = _uiState.value.broadDiscovery)
+        } else {
+            appendLog("Búsqueda OFF")
+            dnsSdRepository.stopDiscovery()
+        }
+    }
+
+    fun setStaEnabled(on: Boolean) {
+        _uiState.update { it.copy(staWanted = on) }
+        if (on) connectToParent() else disconnectSta()
+    }
+
     fun setAutoActivateAfterJoin(enabled: Boolean) {
         _uiState.update { it.copy(autoActivateAfterJoin = enabled) }
         appendLog(if (enabled) "Auto-activar GO tras STA: ON" else "Auto-activar GO tras STA: OFF")
@@ -122,7 +192,6 @@ class Exp01ViewModel(
     /** Primer nodo de la red: GO + anuncio ROOT sin padre. */
     fun startAsRoot() {
         appendLog("Iniciando como raíz (sin padre upstream)…")
-        dnsSdRepository.stopDiscovery()
         pendingAdvertiseRole = "ROOT"
         if (goRepository.goState.value is GoState.Ready) {
             advertiseMember("ROOT", goRepository.goState.value as GoState.Ready)
@@ -135,14 +204,28 @@ class Exp01ViewModel(
     fun scanForParents() {
         val sta = _uiState.value.staState
         if (sta is StaState.Connected) {
-            appendLog("✗ Ya conectado upstream a ${sta.ssid}; no escanear padres")
-            return
+            appendLog("STA sigue a ${sta.ssid}; igual escaneo sin GO")
         }
         if (goRepository.goState.value is GoState.Ready) {
             appendLog("Apagando GO local para escanear padres…")
             stopGo()
         }
-        appendLog("Escaneo de padres (ventana 5s, sin auto-conectar)…")
+        appendLog("Escaneo de padres (sin GO)…")
+        _uiState.update { it.copy(phase = NodePhase.SCANNING) }
+        dnsSdRepository.startDiscovery(useBroadFilter = _uiState.value.broadDiscovery)
+    }
+
+    /** Celda #2: GO intacto; baja el anuncio y lee TXT. */
+    fun scanKeepingGo() {
+        val go = goRepository.goState.value
+        if (go !is GoState.Ready) {
+            appendLog("GO no está listo; igual escaneo (sin quitar grupo)")
+        }
+        if (_uiState.value.isAdvertising) {
+            appendLog("Parando anuncio (GO no se toca)…")
+            dnsSdRepository.stopAdvertising()
+        }
+        appendLog("Escaneo con GO intacto, anuncio abajo…")
         _uiState.update { it.copy(phase = NodePhase.SCANNING) }
         dnsSdRepository.startDiscovery(useBroadFilter = _uiState.value.broadDiscovery)
     }
@@ -172,8 +255,7 @@ class Exp01ViewModel(
             appendLog("✗ PSK vacío en candidato")
             return
         }
-        dnsSdRepository.stopDiscovery()
-        appendLog("Conectando STA a ${record.goSsid} (1 solicitud)…")
+        appendLog("Conectando STA a ${record.goSsid}…")
         _uiState.update { it.copy(phase = NodePhase.JOINING) }
         legacyStaRepository.connectIfSupported(record)
     }
@@ -232,13 +314,6 @@ class Exp01ViewModel(
 
     private fun onUpstreamConnected(upstreamSsid: String) {
         appendLog("✓ Upstream STA: $upstreamSsid")
-        dnsSdRepository.stopDiscovery()
-        if (_uiState.value.autoActivateAfterJoin) {
-            appendLog("Auto-activando GO de miembro…")
-            activateAsMember()
-        } else {
-            appendLog("Pulsa «Activar mi GO» cuando quieras anunciar")
-        }
         refreshPhase()
     }
 
@@ -247,7 +322,6 @@ class Exp01ViewModel(
             appendLog("✗ No eres GO")
             return
         }
-        dnsSdRepository.stopDiscovery()
         dnsSdRepository.advertiseCtrl(
             nid = nodeId,
             goSsid = ready.ssid,
