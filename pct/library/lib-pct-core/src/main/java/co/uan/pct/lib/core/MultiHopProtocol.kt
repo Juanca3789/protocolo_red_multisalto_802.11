@@ -5,6 +5,9 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import android.net.Network
+import co.uan.pct.lib.core.link.ControlLink
+import co.uan.pct.lib.core.link.NeighborTable
 import co.uan.pct.lib.core.logging.PctLog
 import co.uan.pct.lib.core.radio.Radio
 import co.uan.pct.lib.core.types.NodeId
@@ -33,8 +36,10 @@ class MultiHopProtocol(
     private val _parentMac = MutableStateFlow<String?>(null)
     val parentMac: StateFlow<String?> = _parentMac.asStateFlow()
 
-    private val _neighborTable = MutableStateFlow<List<Pair<NodeId, Int>>>(emptyList())
-    val neighborTable: StateFlow<List<Pair<NodeId, Int>>> = _neighborTable.asStateFlow()
+    private val _staNetwork = MutableStateFlow<Network?>(null)
+
+    private val neighborTableModel = NeighborTable()
+    val neighborTable: StateFlow<List<Pair<NodeId, Int>>> = neighborTableModel.entries
 
     var loggingLevel: Int = Log.VERBOSE
         set(value) {
@@ -46,6 +51,7 @@ class MultiHopProtocol(
         }
 
     private lateinit var radio: Radio
+    private lateinit var controlLink: ControlLink
     private var running = false
 
     fun attach(context: Context): MultiHopProtocol {
@@ -77,12 +83,25 @@ class MultiHopProtocol(
                 roleState = _state,
                 connectedMacsState = _connectedMacs,
                 parentMacState = _parentMac,
+                staNetworkState = _staNetwork,
             )
+            neighborTableModel.addEntry(nodeId, hops = 0)
+            controlLink = ControlLink(
+                context = multiHopContext,
+                localNodeId = nodeId,
+                roleFlow = _state,
+                staNetworkFlow = _staNetwork.asStateFlow(),
+                neighborTable = neighborTableModel,
+            )
+            controlLink.start()
             radio.start()
             running = true
             log(Log.DEBUG, "start ok")
         } catch (t: Throwable) {
             log(Log.ERROR, "start failed: ${t.message}")
+            if (::controlLink.isInitialized) {
+                runCatching { controlLink.stop() }
+            }
             if (::radio.isInitialized) {
                 runCatching { radio.stop() }
             }
@@ -99,6 +118,9 @@ class MultiHopProtocol(
         }
         try {
             log(Log.DEBUG, "stop")
+            if (::controlLink.isInitialized) {
+                controlLink.stop()
+            }
             radio.stop()
         } catch (t: Throwable) {
             log(Log.WARN, "stop error: ${t.message}")
@@ -118,6 +140,8 @@ class MultiHopProtocol(
         _state.value = Role.ISLAND
         _connectedMacs.value = emptyList()
         _parentMac.value = null
+        _staNetwork.value = null
+        neighborTableModel.clear()
     }
 
     private fun log(priority: Int, message: String) {

@@ -3,6 +3,7 @@ package co.uan.pct.lib.core.radio
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.Manifest.permission.NEARBY_WIFI_DEVICES
 import android.content.Context
+import android.net.Network
 import android.net.wifi.p2p.WifiP2pManager
 import androidx.annotation.RequiresPermission
 import co.uan.pct.lib.core.logging.PctLog
@@ -34,8 +35,9 @@ class Radio(
     context: Context,
     private val nodeId: NodeId,
     private val roleState: MutableStateFlow<Role>,
-    private val connectedMacsState: MutableStateFlow<List<String>>,
+    private val     connectedMacsState: MutableStateFlow<List<String>>,
     parentMacState: MutableStateFlow<String?>,
+    staNetworkState: MutableStateFlow<Network?>,
 ) {
     private val appContext = context.applicationContext
 
@@ -45,7 +47,12 @@ class Radio(
     private val p2pChannel = P2pChannel(appContext, wifiP2pManager, PctLog.logger("P2pChannel"))
     private val dnsSd = ControlDnsSd(p2pChannel)
     private val groupOwner = GroupOwner(p2pChannel, PctLog.logger("GroupOwner"))
-    private val sta = StaAssociation(appContext, parentMacState, PctLog.logger("StaAssociation"))
+    private val sta = StaAssociation(
+        appContext,
+        parentMacState,
+        staNetworkState,
+        PctLog.logger("StaAssociation"),
+    )
 
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var active = false

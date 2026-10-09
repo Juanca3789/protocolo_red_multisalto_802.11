@@ -6,17 +6,26 @@ import androidx.lifecycle.viewModelScope
 import co.uan.pct.app.pctmesh.PctMeshApplication
 import co.uan.pct.lib.core.MultiHopProtocol
 import co.uan.pct.lib.core.types.Role
+import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
+data class NeighborRowUi(
+    val shortId: String,
+    val name: String,
+    val hops: Int,
+)
+
 data class RadioProbeUiState(
     val role: Role = Role.ISLAND,
     val parentMac: String? = null,
     val childMacs: List<String> = emptyList(),
+    val neighborRows: List<NeighborRowUi> = emptyList(),
 )
 
+@OptIn(ExperimentalUuidApi::class)
 class RadioProbeViewModel(
     private val protocol: MultiHopProtocol,
 ) : ViewModel() {
@@ -25,11 +34,21 @@ class RadioProbeViewModel(
         protocol.state,
         protocol.parentMac,
         protocol.connectedMacs,
-    ) { role, parentMac, childMacs ->
+        protocol.neighborTable,
+    ) { role, parentMac, childMacs, neighborTable ->
         RadioProbeUiState(
             role = role,
             parentMac = parentMac,
             childMacs = childMacs,
+            neighborRows = neighborTable
+                .sortedWith(compareBy({ it.second }, { it.first.name.lowercase() }))
+                .map { (nodeId, hops) ->
+                    NeighborRowUi(
+                        shortId = nodeId.identifier.toString().take(8),
+                        name = nodeId.name,
+                        hops = hops,
+                    )
+                },
         )
     }.stateIn(
         scope = viewModelScope,

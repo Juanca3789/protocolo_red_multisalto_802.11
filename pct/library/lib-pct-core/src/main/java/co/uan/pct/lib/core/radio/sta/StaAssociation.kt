@@ -25,6 +25,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 class StaAssociation(
     context: Context,
     parentMacState: MutableStateFlow<String?>,
+    private val staNetworkState: MutableStateFlow<Network?>,
     private val log: (priority: Int, message: String) -> Unit = Companion::emitLog,
 ) {
     private val connectivity =
@@ -71,9 +72,10 @@ class StaAssociation(
                 runCatching { connectivity.unregisterNetworkCallback(callback) }
             }
             connectivity.requestNetwork(request, callback)
-        }.also {
+        }.also { network ->
             parentMacOut.value = mac
-            log(Log.DEBUG, "sta: connected network=$it parentMac=$mac")
+            staNetworkState.value = network
+            log(Log.DEBUG, "sta: connected network=$network parentMac=$mac")
         }
     }
 
@@ -84,6 +86,7 @@ class StaAssociation(
         }
         networkCallback = null
         parentMacOut.value = null
+        staNetworkState.value = null
         log(Log.DEBUG, "sta: disconnected")
     }
 
