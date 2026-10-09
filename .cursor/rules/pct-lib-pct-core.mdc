@@ -1,0 +1,40 @@
+---
+description: Reglas obligatorias para lib-pct-core (Radio L1, P2P, protocolo)
+alwaysApply: true
+---
+
+# pct/lib-pct-core — agente
+
+## Guía única (no usar código legacy borrado)
+
+Toda decisión L1 de radio/DNS-SD/P2P debe alinearse con **`docs/prototype/proto-exp01-gostat/`** (README + `spec-mdns-dns-sd.md`, `spec-p2p-wifi-direct.md`, `spec-legacy-sta.md`). Código de referencia ejecutable: **`pct/prototype/proto-exp01-gostat/`** (`DnsSdRepository.kt`, `GoRepository.kt`, `LegacyStaRepository.kt`, `PctInstanceCodec.kt`).
+
+Puntos clave exp01:
+
+- Browse con **GO apagado**; luego STA al padre; luego **createGroup + addLocalService**.
+- **Credenciales en instance `p` + Base64URL** (`nid8|ssid|psk`); TXT es respaldo — en Android el TXT remoto **a menudo no llega**. Formato `pct-{hex}` **no basta** para STA.
+- `discoverPeers` + `discoverServices`; ventana de escaneo acumula candidatos (exp01 ~5 s manual; lib puede automatizar).
+
+## Prohibido sin permiso explícito del usuario
+
+- **Compilar** salvo que lo pida.
+- Editar **`MultiHopProtocol.kt`** sin que lo pida en ese turno.
+- Reintroducir paquete **`legacy/`** en lib-pct-core.
+
+## Radio L1 (automatización exp01)
+
+1. `ISLAND` → browse (**15 s**, sin GO ni publish).
+2. Elegir padre solo con candidato **usable** (instance-v1 o TXT completo).
+3. **STA** (`requestNetwork`) antes de GO.
+4. **GO + publish** (`_pct-ctrl._tcp`, instance-v1 según spec).
+5. Monitoreo hijos GO vía `readGroupInfo()` → `connectedMacs`.
+
+## P2pChannel
+
+- Cola: `runP2pAction` + `adapterCall`; **`readGroupInfo()`** fuera de la cola.
+- Logs de sesión: **`PctLog.event`** → tag **`PctMesh`** (INFO).
+
+## Estilo
+
+- Permisos P2P: `@RequiresPermission` FINE_LOCATION + NEARBY_WIFI_DEVICES.
+- Respuestas en **español**.

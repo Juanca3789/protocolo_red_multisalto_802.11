@@ -1,6 +1,8 @@
 package co.uan.pct.app.pctmesh
 
+import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,95 +12,65 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import co.uan.pct.app.pctmesh.ui.MeshScreen
-import co.uan.pct.app.pctmesh.ui.MeshViewModel
-import co.uan.pct.app.pctmesh.ui.MessengerScreen
-import co.uan.pct.app.pctmesh.ui.MessengerViewModel
-import co.uan.pct.lib.core.PctPermissions
+import co.uan.pct.app.pctmesh.ui.RadioProbeScreen
+import co.uan.pct.app.pctmesh.ui.RadioProbeViewModel
+import co.uan.pct.lib.core.MultiHopProtocol
 import com.uan.designsystem.uikit.components.UanAppBar
 import com.uan.designsystem.uikit.theme.UanTheme
 
-/**
- * Activity principal: pestaña **Debug** (MeshScreen) y **Chat** (MessengerScreen).
- *
- * 1. [PctMeshApplication.acquireNode] en onCreate.
- * 2. Pide permisos → [MeshViewModel.startMesh] → `PctNode.start()`.
- * 3. onDestroy (finishing): [PctMeshApplication.releaseNode].
- *
- * Ver [GuiaAppDemo] para protocolo de prueba en dos teléfonos.
- */
 class MainActivity : ComponentActivity() {
 
     private val app get() = application as PctMeshApplication
 
-    private val meshViewModel by viewModels<MeshViewModel> {
-        MeshViewModel.Factory(app)
-    }
-
-    private val messengerViewModel by viewModels<MessengerViewModel> {
-        MessengerViewModel.Factory(app)
+    private val viewModel by viewModels<RadioProbeViewModel> {
+        RadioProbeViewModel.Factory(app)
     }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
-        meshViewModel.startMesh()
+    ) { grants ->
+        if (grants.all { (_, granted) -> granted } && hasRadioPermissions()) {
+            viewModel.start()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        app.acquireNode()
-        permissionLauncher.launch(PctPermissions.required)
         enableEdgeToEdge()
         setContent {
             UanTheme {
-                var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-                val tabs = listOf("Red", "Chat")
-
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding),
                     ) {
-                        UanAppBar(title = "PCT Mesh")
-                        TabRow(selectedTabIndex = selectedTab) {
-                            tabs.forEachIndexed { index, title ->
-                                Tab(
-                                    selected = selectedTab == index,
-                                    onClick = { selectedTab = index },
-                                    text = { Text(title) },
-                                )
-                            }
-                        }
-                        when (selectedTab) {
-                            0 -> MeshScreen(
-                                viewModel = meshViewModel,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            1 -> MessengerScreen(
-                                viewModel = messengerViewModel,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
+                        UanAppBar(title = "PCT Radio")
+                        RadioProbeScreen(
+                            viewModel = viewModel,
+                            onStartClick = ::onStartClick,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                 }
             }
         }
     }
 
-    override fun onDestroy() {
-        if (isFinishing) {
-            app.releaseNode()
+    private fun onStartClick() {
+        val missing = missingRadioPermissions()
+        if (missing.isEmpty()) {
+            viewModel.start()
+        } else {
+            permissionLauncher.launch(missing)
         }
-        super.onDestroy()
     }
+
+    private fun hasRadioPermissions(): Boolean = missingRadioPermissions().isEmpty()
+
+    private fun missingRadioPermissions(): Array<String> =
+        MultiHopProtocol.requiredPermissions.filter { perm ->
+            ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
 }

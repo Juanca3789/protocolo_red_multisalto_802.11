@@ -10,15 +10,16 @@ Android Library del núcleo PCT. Proyecto **solo librería** (sin módulo `:app`
 | Maven Local | `co.uan.pct:core:1.1.0` |
 | minSdk | 31 |
 
+Especificación L1 de radio: [`docs/prototype/proto-exp01-gostat/`](../../docs/prototype/proto-exp01-gostat/README.md).
+
 ## API
 
 ```kotlin
-val pct = PctCore.create()
-pct.init(applicationContext)
+val mesh = MultiHopProtocol("pct").attach(applicationContext)
 // tras permisos:
-pct.start() // scan → join | root
-// observar pct.phase / pct.topology / pct.events
-pct.close()
+mesh.start()
+// state, connectedMacs, parentMac (StateFlow)
+mesh.stop()
 ```
 
 ## Publicar
