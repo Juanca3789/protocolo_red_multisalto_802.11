@@ -1,0 +1,1211 @@
+\documentclass[12pt,oneside]{scrreprt}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{csquotes}
+\usepackage{setspace}
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes.geometric,arrows.meta}
+\usepackage{microtype}
+\usepackage{ragged2e}  
+\usepackage[hidelinks]{hyperref}
+\usepackage{float}
+\usepackage{scrhack}
+
+
+\usepackage[letterpaper, left=2.54cm, right=2.54cm, top=2.54cm, bottom=2.54cm, headheight=24pt, headsep=0.5cm, includehead]{geometry}
+\usepackage{indentfirst}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+\AtBeginDocument{%
+  \RaggedRight
+  \setlength{\parindent}{1.25cm}%
+  \setlength{\parskip}{0pt}%
+}
+
+\usepackage[headsepline=false, singlespacing=true]{scrlayer-scrpage}
+\clearpairofpagestyles
+\ohead[\pagemark]{\pagemark} % Numeración en header-derecha (incluyendo inicio de capítulos)
+
+% Capa robusta vinculada a la página física (area=page) para evitar problemas de margen
+% El gráfico institucional \includegraphics{header} se conserva; el archivo no está en el repositorio.
+\DeclareLayer[
+  background,
+  area=page,
+  voffset=0pt,
+  hoffset=0pt,
+  width=\paperwidth,
+  height=110pt,
+  contents={
+    \IfFileExists{header.pdf}{\includegraphics[width=\paperwidth,keepaspectratio]{header}}{%
+    \IfFileExists{header.png}{\includegraphics[width=\paperwidth,keepaspectratio]{header}}{%
+    \IfFileExists{header.jpg}{\includegraphics[width=\paperwidth,keepaspectratio]{header}}{}}}
+  }
+]{headerimage.layer}
+
+\DeclareNewPageStyleByLayers{headerimage}{headerimage.layer}
+\AddLayersAtBeginOfPageStyle{scrheadings}{headerimage.layer}
+\AddLayersAtBeginOfPageStyle{plain.scrheadings}{headerimage.layer}
+\AddLayersAtBeginOfPageStyle{empty}{headerimage.layer}
+
+\usepackage[
+backend=biber,
+style=apa,
+language=spanish
+]{biblatex}
+
+\doublespacing
+
+\RedeclareSectionCommand[
+  toclinefill=\TOCLineLeaderFill,
+  beforeskip=0pt,
+  afterskip=1\baselineskip
+]{chapter}
+\RedeclareSectionCommand[
+  beforeskip=0pt,
+  afterskip=0.5\baselineskip
+]{section}
+\RedeclareSectionCommand[
+  beforeskip=0pt,
+  afterskip=0.5\baselineskip
+]{subsection}
+\RedeclareSectionCommand[
+  beforeskip=0pt,
+  afterskip=0.5\baselineskip
+]{subsubsection}
+
+
+% Numerar hasta subsubsection pero no mostrar en TOC
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+\addbibresource{../../../referencias.bib}
+\setkomafont{chapter}{\normalfont\normalsize\bfseries}
+\let\raggedchapter\centering % Centra los títulos de los capítulos (APA 7)
+\setkomafont{section}{\normalfont\normalsize\bfseries}
+\setkomafont{subsection}{\normalfont\normalsize\bfseries}
+\setkomafont{subsubsection}{\normalfont\normalsize\bfseries}
+
+\begin{document}
+\pagestyle{empty}
+
+% ---------- PORTADA ----------
+\newgeometry{left=2.54cm, right=2.54cm, top=1.54cm, bottom=2.54cm, headheight=110pt, headsep=0.5cm}
+\begin{titlepage}
+\thispagestyle{headerimage}
+\begin{center}
+
+\vspace*{2\baselineskip} % APA 7: 3 a 4 líneas en blanco antes del título
+
+{\textbf{Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional}}
+
+\vspace{6\baselineskip} % APA 7: 1 a 2 líneas en blanco antes de los autores
+
+
+\textbf{Juan Carlos Clavijo Triviño}\\
+11162213503\\
+\textbf{Brandon Stiven Ganzo Murcia}\\
+11162217498\\
+
+\vfill
+\textbf{Universidad Antonio Nariño}\\
+Programa Ingeniería de Sistemas y Computación\\
+Facultad de Ingeniería de Sistemas\\
+Bogotá, Colombia\\
+2026
+
+\end{center}
+\end{titlepage}
+
+% ---------- CONTRAPORTADA ----------
+\begin{titlepage}
+\thispagestyle{headerimage}
+\begin{center}
+
+\vspace*{2\baselineskip}
+
+{\textbf{Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional}}
+
+\vspace{2\baselineskip}
+
+\textbf{Juan Carlos Clavijo Triviño}\\
+\textbf{Brandon Stiven Ganzo Murcia}\\
+
+\vspace{1\baselineskip}
+
+Proyecto de grado presentado como requisito parcial para optar al título de:\\
+\textbf{Ingeniero de Sistemas y Computación}
+
+\vspace{1\baselineskip}
+
+Director:\\
+\textbf{Elio Higinio Cables Pérez, Ph.D.}
+
+\vspace{2\baselineskip}
+
+Línea de Investigación:\\
+\textbf{Una plataforma escalable de comunicación para escenarios post-desastre utilizando tecnologías mesh y micro-computadores para redes ad hoc con cobertura ampliada}
+
+\vfill
+\textbf{Universidad Antonio Nariño}\\
+Programa Ingeniería de Sistemas y Computación\\
+Facultad de Ingeniería de Sistemas\\
+Bogotá, Colombia\\
+2026
+
+\end{center}
+\end{titlepage}
+
+% ---------- NOTA DE ACEPTACIÓN ----------
+\restoregeometry
+\clearpage
+\pagestyle{empty}
+\renewcommand*{\chapterpagestyle}{empty}
+\chapter*{Nota de aceptación}
+\addcontentsline{toc}{chapter}{Nota de aceptación}
+
+El trabajo de grado titulado \textit{Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional} cumple con los requisitos para optar al título de \textit{Ingeniero de Sistemas y Computación}.
+
+\vspace{2.5cm}
+\begin{center}
+\begin{tabular}{@{}c@{\hspace{3cm}}c@{}}
+  Firma del Tutor & Firma Jurado \\[2cm]
+  \rule{6cm}{0.4pt} & \rule{6cm}{0.4pt} \\[1.5cm]
+  & Firma Jurado \\[2cm]
+  & \rule{6cm}{0.4pt} \\
+\end{tabular}
+\end{center}
+
+\vfill
+\begin{flushright}
+  Bogotá, Colombia, día mes 2026.
+\end{flushright}
+
+% ---------- ÍNDICE Y LISTAS ----------
+\clearpage
+\pagenumbering{roman}
+\singlespacing
+\tableofcontents
+
+\clearpage
+\addcontentsline{toc}{chapter}{\listfigurename}
+\listoffigures
+
+\clearpage
+\addcontentsline{toc}{chapter}{\listtablename}
+\listoftables
+\doublespacing
+
+\clearpage
+\chapter*{Lista de símbolos y abreviaturas}
+\addcontentsline{toc}{chapter}{Lista de símbolos y abreviaturas}
+
+\noindent\textbf{Símbolos y capas}\par
+\vspace{0.2cm}
+\begin{tabular}{@{}ll@{}}
+  L1     & Capa física de PCT (radio Wi-Fi, Group Owner, STA legacy y DNS-SD) \\
+  L2     & Capa de enlace de PCT (TCP, aristas y tabla de rutas) \\
+  L3     & Capa de red de PCT (reenvío de usuario por identificador de nodo) \\
+\end{tabular}
+
+\vspace{0.5cm}
+\noindent\textbf{Abreviaturas}\par
+\vspace{0.2cm}
+\begin{tabular}{@{}ll@{}}
+  PCT    & Protocolo de Control Topológico \\
+  GO     & Group Owner (Wi-Fi Direct) \\
+  STA    & Estación (modo infraestructura / legacy) \\
+  DNS-SD & DNS-Based Service Discovery \\
+  MANET  & Mobile Ad Hoc Network \\
+  UUID   & Identificador único universal \\
+  API    & Application Programming Interface \\
+  TCP    & Transmission Control Protocol \\
+  UDP    & User Datagram Protocol \\
+  SSID   & Service Set Identifier \\
+  ISLAND & Nodo no incorporado a la topología \\
+  ROOT   & Nodo raíz de la topología \\
+  BRIDGE & Nodo intermedio que acepta hijos \\
+  LEAF   & Nodo hoja de la topología \\
+\end{tabular}
+
+% ---------- RESUMEN Y ABSTRACT ----------
+\chapter*{Resumen}
+\addcontentsline{toc}{chapter}{Resumen}
+El presente documento describe el diseño y la validación empírica de un protocolo distribuido de control topológico para redes multisalto, enfocado en dispositivos móviles Android que utilizan interfaces Wi-Fi convencionales. El protocolo permite a los terminales descubrirse mutuamente, formar enlaces y organizar de forma autónoma una estructura de enrutamiento en entornos carentes de infraestructura centralizada (tales como routers o puntos de acceso físicos). Para asegurar la continuidad lógica de la comunicación, se definen mecanismos de reconfiguración que detectan la desconexión abrupta de nodos intermedios ---un evento característico de escenarios post-desastre--- y enrutan nuevamente el flujo de información, limitando los ciclos topológicos a través de tablas de estado locales guiadas por métricas de salto. La validación se llevó a cabo a nivel de capa de aplicación, probando su eficacia de resiliencia inter-nodo sin requerir modificaciones profundas a nivel de sistema operativo (root).
+
+\vspace{0.5cm}
+\textbf{Palabras clave:} Protocolo distribuido, Wi-Fi convencional, Redes multisalto, Topología dinámica, Android, Comunicación post-desastre.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+This document details the design and empirical validation of a distributed topological control protocol for multi-hop networks, aimed at Android mobile devices using conventional Wi-Fi interfaces. The protocol enables terminals to mutually discover each other, establish links, and autonomously organize a routing structure in environments completely lacking centralized infrastructure (such as standard physical routers or access points). To ensure the logical continuity of communication, reconfiguration mechanisms are defined to detect the abrupt disconnection of intermediate nodes---an event characteristic of post-disaster scenarios---and dynamically reroute the information flow, preventing topological cycles through local state tables guided by hop metrics. The validation was conducted at the application layer, testing its inter-node resilience without requiring extensive operating system modifications (root access).
+
+\vspace{0.5cm}
+\textbf{Keywords:} Distributed protocol, Conventional Wi-Fi, Multi-hop networks, Dynamic topology, Android, Post-disaster communication.
+
+% ---------- INTRODUCCIÓN ----------
+\clearpage
+\pagenumbering{arabic}
+\pagestyle{scrheadings}
+\renewcommand*{\chapterpagestyle}{plain}
+\chapter*{Introducción}
+\addcontentsline{toc}{chapter}{Introducción}
+Las redes de telecomunicaciones modernas descansan sobre arquitecturas estrictamente centralizadas, una dependencia estructural que garantiza altas velocidades y estabilidad cuando las operadoras funcionan en condiciones nominales, pero que se convierte en una falla sistémica ante contextos de disrupción, tales como desastres naturales o apagones sostenidos. En estos escenarios, el colapso de las antenas, los puntos de acceso o el tendido de fibra óptica deja a múltiples comunidades aisladas, paradójicamente, a pesar de que los dispositivos inteligentes en sus manos poseen potentes interfaces radiales capaces de emitir y recibir información a nivel local.
+
+Este proyecto aborda la formulación algorítmica y estructural de una solución orientada a la creación de redes de emergencia (redes ad hoc multisalto), eliminando por definición la necesidad de coordinadores centrales fijos. El enfoque tecnológico aprovecha el espectro Wi-Fi nativo e inalterado en dispositivos con el sistema operativo Android, sorteando limitantes de acceso a las capas MAC que históricamente han marginado a las implementaciones de redes en malla (Mesh) hacia infraestructuras costosas, hardwares estandarizados por consorcios o móviles modificados en su núcleo (rooteados).
+
+El desarrollo se fundamenta en un enfoque metodológico iterativo que permite la validación progresiva de los algoritmos de enrutamiento y reconfiguración, buscando consolidar un protocolo que garantice la conectividad lógica en redes móviles descentralizadas.
+
+El presente documento se organiza en seis capítulos: el Capítulo 1 presenta el planteamiento del problema, la justificación, los objetivos y el alcance; el Capítulo 2 establece el marco referencial, con el marco teórico, el estado del arte y el marco legal; el Capítulo 3 detalla la metodología por incrementos; el Capítulo 4 expone el desarrollo del sistema; el Capítulo 5 presenta los resultados; el Capítulo 6 recoge las conclusiones y las recomendaciones. Cierran el escrito el glosario y las referencias.
+
+% ---------- ANTECEDENTES (protocolo, tiempo intacto) ----------
+\chapter{Planteamiento del problema}
+
+\section{Descripción del problema}
+
+En la actualidad, las redes de telecomunicaciones dependen principalmente de infraestructura centralizada, como torres celulares, routers o puntos de acceso que coordinan la comunicación entre los dispositivos. Este modelo permite gestionar la conectividad de forma eficiente en condiciones normales, sin embargo, produce una dependencia directa: cuando dicha infraestructura falla, se congestiona o queda fuera de servicio, la comunicación entre los usuarios puede verse interrumpida de manera parcial o total \parencite{Tanenbaum2011}.
+
+Esta situación se vuelve especialmente relevante en escenarios como desastres naturales, fallas generalizadas de red o contextos donde la infraestructura de comunicaciones no está disponible. En estos casos, aunque los dispositivos móviles continúan funcionando y mantienen capacidades de conectividad inalámbrica, los usuarios pueden quedar aislados debido a la ausencia de sistemas que permitan coordinar la comunicación de forma directa entre los dispositivos cercanos \parencite{Akyildiz2005}.
+
+A pesar de que tecnologías como Wi-Fi están ampliamente disponibles en teléfonos móviles y otros dispositivos electrónicos de uso cotidiano, su funcionamiento convencional está orientado principalmente a un modelo basado en infraestructura, donde un punto de acceso central gestiona el tráfico y la organización de la red \parencite{IEEE2020}.
+
+Como resultado, el alcance efectivo de comunicación queda limitado al rango individual del punto central del Wi-Fi, que normalmente se encuentra aproximadamente entre 10 y 100 metros, dependiendo de las condiciones del entorno, la potencia de transmisión y las características del dispositivo \parencite{Gupta2000}. Esto conlleva a que dispositivos físicamente cercanos pierdan su capacidad de interconexión ante cualquier fallo, saturación o limitación en la cobertura del nodo central, quedando aislados a pesar de encontrarse dentro del rango radial de otros dispositivos.
+
+Las redes multisalto presentan una alternativa que permite que la comunicación se mantenga activa incluso si uno o varios nodos fallan, aumentando la resiliencia del sistema. Además, este enfoque resulta especialmente relevante en escenarios críticos, como desastres naturales, eventos masivos o zonas rurales sin infraestructura estable, donde la comunicación inmediata y confiable es esencial \parencite{Akyildiz2005}.
+
+Sin embargo, aunque existen protocolos multisalto, la mayoría requiere hardware especializado y configuraciones manuales de caracter complejo, especialmente a la hora de añadir nuevos nodos a la red, lo que limita su aplicabilidad en dispositivos de uso cotidiano \parencite{IEEE2020}.
+
+En consecuencia, surge la necesidad de desarrollar un protocolo distribuido capaz de organizar dispositivos Wi-Fi convencionales en redes multisalto adaptativas, asegurando que la comunicación se mantenga aún en entornos dinamicos, extendiendo el alcance de comunicación y eliminando la dependencia de infraestructura centralizada.
+
+\section{Formulación del problema}
+
+Las redes inalámbricas convencionales dependen de infraestructura centralizada que, cuando falla o no está disponible, impide la comunicación entre dispositivos cercanos. Aunque los estándares IEEE 802.11 contemplan modos ad hoc y mesh \parencite{IEEE2020}, las soluciones existentes requieren hardware especializado o modificaciones en las capas inferiores de la pila de protocolos, lo que las hace inviables en dispositivos móviles de uso cotidiano. Esto evidencia la necesidad de mecanismos de control distribuido que permitan a los dispositivos organizarse autónomamente, establecer relaciones topológicas coherentes y adaptarse a cambios en la conectividad operando exclusivamente sobre las interfaces estándar disponibles.
+
+A partir de esta necesidad se plantea la siguiente pregunta de investigación:
+
+\textbf{¿Cómo diseñar un protocolo distribuido que permita formar y mantener una topología multisalto mediante interfaces Wi-Fi estándar, asegurando estabilidad, prevención de ciclos y reconfiguración ante cambios dinámicos?}
+
+\section{Justificación}
+
+El estudio de mecanismos alternativos de comunicación resulta relevante en contextos donde la infraestructura tradicional de telecomunicaciones no se encuentra disponible o presenta fallas. En situaciones como desastres naturales, interrupciones del servicio o saturación de las redes, los sistemas centralizados pueden dejar de operar temporalmente, lo que provoca que los usuarios pierdan la posibilidad de comunicarse entre sí \parencite{Akyildiz2005}. Esta situación se intensifica en los escenarios de desastres naturales, donde la comunicación pasa a ser un elemento vital en la busqueda de sobrevivientes y en la coordinación de las labores de rescate. Ante este tipo de escenarios, investigar formas de comunicación que no dependan de infraestructura fija puede aportar alternativas para mantener el intercambio de información entre dispositivos cercanos.
+
+Desde una perspectiva social, la posibilidad de que los dispositivos móviles puedan conectarse directamente entre sí y extender la comunicación mediante saltos entre nodos puede resultar útil en entornos donde la conectividad es limitada o inexistente, como en zonas rurales, donde la infraestructura de telecomunicaciones puede ser escasa o costosa, de igual manera que en eventos masivos, donde un solo nodo central puede verse saturado por la cantidad de usuarios simultáneos \parencite{Appiahene2019}. El uso de tecnologías que ya están integradas en la mayoría de los dispositivos, como el Wi-Fi, permite explorar soluciones que no requieren hardware adicional ni modificaciones complejas en la infraestructura existente, ni desde el lado de los dispositivos de los usuarios finales, como también de la infraestructura de telecomunicaciones móvil o fija.
+
+En el ámbito de la ingeniería de sistemas, el análisis de protocolos distribuidos aplicados a redes inalámbricas representa un campo de investigación importante, particularmente en temas relacionados con la autoorganización de nodos, el control de topologías dinámicas y la continuidad de la comunicación en redes con conectividad variable \parencite{Gupta2000,Karl2005}. Estudiar cómo estos mecanismos pueden implementarse sobre interfaces Wi-Fi estándar permite comprender mejor las posibilidades y limitaciones de este tipo de redes, especialmente ante el uso masivo moderno de la conectividad inalámbrica, misma que induce entropía en la topología de la red.
+
+En conjunto, el desarrollo de este trabajo se enmarca dentro del proyecto de investigación denominado \enquote{Una plataforma escalable de comunicación para escenarios post-desastre utilizando tecnologías mesh y microcomputadores para redes ad hoc con cobertura ampliada}. La investigación aporta al análisis de mecanismos de comunicación descentralizados que puedan operar utilizando tecnologías ampliamente disponibles, como el Wi-Fi en dispositivos móviles. Asimismo, permite generar una base conceptual y experimental que pueda servir como referencia para futuros desarrollos orientados a mejorar la resiliencia de las comunicaciones en escenarios de desastres naturales, donde la infraestructura de telecomunicaciones convencional no se encuentra disponible.
+
+\section{Objetivos}
+
+\subsection{Objetivo general}
+
+Desarrollar un protocolo distribuido de control y reconfiguración de redes multisalto mediante interfaces Wi-Fi estándar, que permita a los nodos mantener comunicación estable, prevenir ciclos y adaptarse dinámicamente a cambios en la topología, mediante un diseño experimental en dispositivos Android.
+
+\subsection{Objetivos específicos}
+
+\begin{itemize}
+\item Diseñar el protocolo distribuido de control y reconfiguración topológica, definiendo mecanismos de descubrimiento de nodos, establecimiento de enlaces y prevención de ciclos.
+\item Definir la estructura de comunicación lógica entre nodos, incluyendo la forma en que los dispositivos intercambian información y mantienen la continuidad de la topología de manera autónoma.
+\item Implementar una propuesta conceptual del protocolo en dispositivos Android, mediante una aplicación demostrativa que permita la creación y reorganización dinámica de la red.
+\item Evaluar el comportamiento del protocolo mediante pruebas de laboratorio controladas, midiendo métricas de conectividad lógica, tiempo de reconfiguración ante fallos de nodo y continuidad del flujo de información en escenarios de topología variable.
+\end{itemize}
+
+\section{Alcance y limitaciones del proyecto}
+
+\subsection{Alcances}
+
+Los alcances del proyecto definen los límites lógicos y compromisos técnicos para el desarrollo del protocolo distribuido, estableciendo de manera clara los componentes que serán materializados en el sistema experimental y los resultados esperados al finalizar la investigación.
+
+\textbf{Entregables}
+\begin{itemize}
+    \item \textbf{Diseño formal del protocolo:} Un documento técnico detallando la arquitectura lógica del protocolo, que incluye la especificación de los mecanismos de descubrimiento de nodos, diagramas de estado para el establecimiento de enlaces y tablas de decisión para la prevención de ciclos.
+    \item \textbf{Aplicación Android demostrativa:} Un paquete de instalación (APK) funcional para dispositivos móviles que integra el motor del protocolo mediante interfaces Wi-Fi estándar, habilitando la formación de topologías dinámicas y un sistema de mensajería en tiempo real.
+    \item \textbf{Validación en laboratorio:} Un informe de resultados empíricos que consolida la evaluación de la conectividad inicial, el tiempo de reconexión topológica ante fallos y las métricas de continuidad del flujo de información en escenarios controlados.
+\end{itemize}
+
+\textbf{No entregables}
+\begin{itemize}
+    \item Modificaciones a la capa física o a la capa MAC del estándar IEEE 802.11.
+    \item Mecanismos de calidad de servicio (QoS) o cifrado extremo a extremo.
+    \item Despliegue en producción o compatibilidad con sistemas operativos distintos de Android.
+\end{itemize}
+
+\subsection{Limitaciones}
+
+\begin{itemize}
+    \item Tiempo limitado a 12 semanas según calendario académico semestral, restringiendo iteraciones de prueba.
+    \item El desarrollo está restringido a dispositivos con \textbf{Android 12 (API nivel 31)}, los cuales deben cumplir con los requisitos físicos mínimos del Compatibility Definition Document (CDD) de Google \parencite{Google2021}: al menos 2 GB de memoria RAM (evitando la versión Go Edition para asegurar estabilidad), una resolución de pantalla mínima de 426 dp x 320 dp y soporte mandatorio para Wi-Fi Direct (P2P), esencial para la formación de la red multisalto sin infraestructura.
+    \item Acceso a funciones (SoftAP, Wi-Fi Direct) sujeto a restricciones de las APIs de Android por fabricante, dificultando la portabilidad.
+    \item Al operar en capa de aplicación, el protocolo hereda la latencia y restricciones energéticas del SO, limitando los tiempos de respuesta.
+\end{itemize}
+
+% ---------- MARCO REFERENCIAL ----------
+\chapter{Marco referencial}
+\label{ch:marco}
+\label{cap:marco-teorico}
+
+El desarrollo de un protocolo distribuido de control y reconfiguración topológica para redes multisalto sobre Wi-Fi convencional exige articular, en un mismo marco, tres planos que rara vez coinciden en la literatura: los fundamentos de las redes \emph{ad hoc} y mesh, las restricciones reales de la pila 802.11 y de Android en dispositivos de consumo, y el estado de las soluciones que ya intentan comunicar terminales sin infraestructura. Este capítulo reúne esas piezas para situar el protocolo propuesto como un diseño de capa de aplicación sobre Wi-Fi convencional, sin privilegios de superusuario y sin alterar las capas MAC o PHY. El detalle de cómo se anuncia un nodo, cómo se enlaza y cómo se reenvía un mensaje corresponde al diseño metodológico.
+
+La exposición se organiza en definiciones no técnicas y técnicas, fundamentos de IEEE 802.11 y Wi-Fi Direct, descubrimiento de servicios, restricciones de Android~12, estado del arte ---incluyendo AODV, OLSR, Meshtastic, Bridgefy, Briar y BitChat--- y el marco legal colombiano aplicable. El hilo conductor es la línea de investigación institucional ya declarada en la portada del trabajo.
+
+\section{Marco teórico}
+
+\subsection{Línea de investigación}
+\label{sec:linea-investigacion}
+
+El presente trabajo se inscribe en la línea \enquote{Una plataforma escalable de comunicación para escenarios post-desastre utilizando tecnologías mesh y micro-computadores para redes ad hoc con cobertura ampliada}. Esa línea parte de un hecho reiterado en la literatura de emergencia: tras un sismo, una inundación o una falla masiva, la infraestructura celular y de acceso fijo puede quedar destruida, saturada o inalcanzable, y hace falta restaurar conectividad con despliegues rápidos, flexibles y con mínima intervención humana \parencite{Miranda2016,Reina2015}. Las redes \emph{ad hoc} multisalto ---MANET, DTN y mesh--- aparecen de forma recurrente como alternativa precisamente porque no presuponen un punto de acceso central \parencite{Akyildiz2005,Conti2014}.
+
+Dentro de esa agenda, PCT no propone un microcomputador dedicado ni un radio distinto del que ya trae un teléfono Android. Aporta, en cambio, un mecanismo de control topológico que puede ejecutarse sobre Wi-Fi convencional, de modo que la cobertura se amplíe por saltos entre terminales de uso cotidiano. Esa decisión alinea el trabajo con el objetivo de la línea ---comunicación post-desastre con tecnologías mesh y cobertura ampliada--- y lo diferencia de las plataformas que resuelven el mismo problema con hardware LoRa, Bluetooth de corto alcance o modificaciones de firmware. El resto del capítulo precisa los conceptos, los estándares y los antecedentes que hacen viable ---y a la vez restringen--- esa apuesta.
+
+\subsection{Definiciones no técnicas}
+\label{sec:definiciones-no-tecnicas}
+
+\subsubsection{Desastre natural}
+
+Se define como la relación entre fenómenos naturales peligrosos ---terremotos, inundaciones, huracanes--- y las condiciones de vulnerabilidad física y socioeconómica de una comunidad \parencite[pp.~6--9]{Maskrey1993}. El desastre no reside en el fenómeno aislado, sino en el encuentro entre amenaza y vulnerabilidad. Para este proyecto el concepto delimita el escenario de aplicación: entornos en los que la infraestructura de comunicación convencional puede estar comprometida o destruida y en los que un protocolo autónomo, sin coordinador externo, debe seguir operando.
+
+\subsubsection{Resiliencia en comunicaciones}
+
+La resiliencia se entiende como la capacidad de un sistema para mantener o restaurar sus funciones esenciales frente a perturbaciones \parencite{Sterbenz2010}. En redes, ello implica supervivencia, degradación controlada y recuperación, no solo redundancia estática. En PCT la resiliencia se materializa en la reorganización de la topología ante la pérdida de un nodo intermedio, de modo que el flujo de información pueda continuar sin intervención del usuario. La continuidad lógica ---definida más adelante--- es la métrica con la que se evalúa esa capacidad.
+
+\subsubsection{Comunicación descentralizada}
+
+Se refiere a los mecanismos de intercambio en los que no existe un nodo central que coordine el tráfico; cada dispositivo toma decisiones con información local \parencite{Conti2014}. El principio es el fundamento de diseño de PCT: los nodos se descubren, eligen padre o hijo y actualizan tablas de rutas sin un servidor de coordinación ni una autoridad de direcciones. Las redes oportunistas llevan el mismo principio al extremo cuando la conectividad es intermitente \parencite{Conti2010}; el perfil mínimo de PCT, sin embargo, asume enlaces relativamente estables entre vecinos directos y no implementa almacén y reenvío diferido.
+
+\subsubsection{Escenario post-desastre}
+
+La literatura de redes de emergencia distingue el momento de la catástrofe del de la respuesta: tras el evento, la red celular puede estar parcial o totalmente fuera de servicio y se requieren soluciones desplegables con rapidez, escalables y resilientes \parencite{Miranda2016}. Las encuestas sobre paradigmas \emph{ad hoc} ---MANET, VANET, DTN y redes de sensores--- coinciden en que el multisalto es una alternativa realista cuando no hay infraestructura, pero también en que el coste de control, la movilidad y la heterogeneidad de dispositivos siguen abiertos \parencite{Reina2015}. Ese marco justifica estudiar un protocolo que opere sobre teléfonos ya presentes en la zona afectada, en lugar de depender de un despliegue logístico de radios especializados.
+
+\subsection{Definiciones técnicas}
+\label{sec:definiciones-tecnicas}
+
+\subsubsection{Red de área local inalámbrica y estándar IEEE 802.11}
+
+Una WLAN emplea radiofrecuencia para conectar dispositivos sin cableado. El estándar IEEE 802.11 define las capas física y de acceso al medio (MAC) de lo que comercialmente se conoce como Wi-Fi \parencite{IEEE2020}. En el modo de infraestructura, un punto de acceso centraliza la asociación y el reenvío; el alcance típico de un salto se sitúa, según condiciones de entorno y potencia, en un rango del orden de decenas de metros, con cotas clásicas entre 10 y 100~m \parencite{Gupta2000}. Esa limitación geométrica es la que un protocolo multisalto busca superar sin modificar la radio: no se altera el PHY, se encadenan asociaciones.
+
+El propio 802.11 contempla modos distintos del de infraestructura ---IBSS \emph{ad hoc} y, en revisiones posteriores, mecanismos mesh---, pero su disponibilidad efectiva en teléfonos de consumo es escasa. El sistema operativo expone, en la práctica, el modo infraestructura y el perfil Wi-Fi Direct de la Wi-Fi Alliance, no una pila MANET de capa de red \parencite{IEEE2020,WiFiAlliance2010}.
+
+\subsubsection{Red \emph{ad hoc}, MANET y redes mesh}
+
+Una red \emph{ad hoc} es una red inalámbrica temporal y dinámica, sin infraestructura preexistente, en la que cada nodo actúa a la vez como extremo y como enrutador \parencite{Perkins2001,Toh2002}. Cuando los nodos son móviles se habla de MANET: la topología cambia con el movimiento, las baterías son finitas y no hay garantía de un camino estable \parencite{Conti2014}. Las redes mesh evolucionan el mismo principio hacia una malla con caminos alternativos, pensada para robustez y cobertura \parencite{Akyildiz2005}. En la práctica comercial, muchas mallas se construyen con hardware o firmware específicos; trasladar ese modelo a un teléfono Android sin privilegios obliga a subir el control a la capa de aplicación.
+
+\subsubsection{Redes multisalto}
+
+Una red multisalto permite la comunicación entre dispositivos que no se alcanzan en un solo enlace, reenviando paquetes por nodos intermedios \parencite{Gupta2000}. El número de saltos mide distancia topológica, no geográfica, y condiciona latencia, probabilidad de entrega y tamaño de las tablas \parencite{Zhao2003}. En este trabajo el salto es el enlace con un vecino y el destino final se nombra de forma lógica, sin una dirección de extremo a extremo; el tope de saltos es un parámetro del protocolo, no una propiedad del medio 802.11.
+
+\subsubsection{Protocolo distribuido}
+
+Un protocolo distribuido es un conjunto de reglas que permite a varios nodos coordinarse y decidir sin un controlador central \parencite{TanenbaumVanSteen2007}. En este proyecto esas reglas cubren el descubrimiento de vecinos, el establecimiento del sentido de la arista, la fusión de anuncios de ruta, la prevención de ciclos y la reconfiguración ante caídas. La convergencia se busca con estado local ---tablas, épocas y temporizadores---, no con una visión global sincronizada.
+
+\subsubsection{Topología de red y gestión topológica}
+
+La topología describe cómo están interconectados los nodos; en redes dinámicas varía por movilidad, pérdida de enlaces o llegada de dispositivos nuevos \parencite{Karl2005}. La gestión topológica mantiene una representación coherente y propaga los cambios. En un perfil mínimo esa forma física puede ser un árbol, un padre por nodo y cero o más hijos, y la identidad del nodo no tiene por qué coincidir con la dirección que el punto de acceso le asigna, porque el árbol se arma por identificadores y no por esa dirección.
+
+\subsubsection{Continuidad lógica}
+
+La continuidad lógica es la capacidad de mantener el flujo de información cuando cambia la topología ---caída de un puente, recableado de un padre, incorporación tardía--- \parencite{Karl2005}. Cabe distinguir la versión de la topología y la de una conversación entre dos extremos. El nombre del grupo no tiene que cambiar cuando cambia la ruta: la identidad de radio puede permanecer estable mientras la sesión lógica sobrevive al recableado. Esa separación es la que permite hablar de continuidad sin reiniciar la red.
+
+\subsubsection{Identidad lógica y direccionamiento}
+
+Un nodo puede identificarse con un identificador único, independiente de la dirección que le asigna el punto de acceso \parencite{Leach2005}. En Android el dueño de un grupo Wi-Fi Direct publica de forma habitual la misma dirección IPv4; un teléfono que es a la vez dueño de su grupo y estación de otro ve esa dirección como local, y el tráfico hacia el padre no sale del aparato \parencite{Funai2017,Casetti2015}. Las direcciones de enlace local no colisionan de ese modo, porque quedan ligadas a la interfaz \parencite{Hinden2006}. Por encima del enlace basta con identificadores lógicos: la dirección IP es un dato del vecino inmediato, no del destino final.
+
+\subsubsection{Sockets y comunicación TCP en Android}
+
+Un socket permite a una aplicación enviar y recibir datos sin descender a la capa de acceso al medio, y en Android esa posibilidad existe en espacio de usuario, sobre TCP, sin privilegios de superusuario \parencite{AndroidDevelopers2024}. El anteproyecto contemplaba anunciar la presencia por datagramas; el descubrimiento de servicios que ya trae Wi-Fi Direct ofrece, en cambio, un anuncio previsto por la plataforma. Sobre el TCP que queda después de asociarse conviene separar el tráfico de control del de usuario, porque una ráfaga de mensajes bloquea la señalización cuando ambos comparten un único flujo.
+
+\subsection{IEEE 802.11, Wi-Fi Direct y el modelo GO homogéneo}
+\label{sec:wifi-direct}
+
+Wi-Fi Direct ---especificada por la Wi-Fi Alliance como Wi-Fi Peer-to-Peer--- permite que un dispositivo forme un grupo en el que uno de ellos, el Group Owner, emula un punto de acceso y los demás se asocian como clientes P2P o, en el caso de equipos que no hablan P2P, como estaciones legacy \parencite{WiFiAlliance2010,CampsMur2013}. El GO anuncia un SSID, gestiona el DHCP del grupo y reenvía tramas dentro de ese BSS. Camps-Mur, García-Saavedra y Serrano documentan que el descubrimiento y la formación de grupo tardan, en la práctica, varios segundos, y que el ahorro energético del GO es un problema abierto precisamente porque el SoftAP no duerme como una STA \parencite{CampsMur2013}.
+
+Android expone a las aplicaciones la formación de grupo, el anuncio de servicios y el descubrimiento \parencite{AndroidDevelopersWifiP2p}. Asociarse como estación de infraestructura al nombre y a la clave de un grupo ajeno no es lo mismo que unirse como cliente del grupo: esta última operación convierte al teléfono en miembro y, en muchos fabricantes, le impide mantener un grupo propio \parencite{AndroidDevelopersWifiNetworkSpecifier}. Un puente entre teléfonos de consumo se plantea, por eso, con cada nodo como dueño de su grupo y el enlace hacia el padre como estación de infraestructura.
+
+El resultado es un modelo de enlace homogéneo. Existe un enlace local ---el SoftAP propio--- y, como máximo, un enlace \emph{upstream} ---la STA al GO del padre---. No hay, en el perfil mínimo, un cliente P2P que abandone su grupo para unirse a otro. La cadena física es
+\[
+\mathrm{GO}_{\text{raíz}} \leftarrow \mathrm{STA}(\mathrm{GO}_{\text{puente}}) \leftarrow \mathrm{STA}(\mathrm{GO}_{\text{hoja}}),
+\]
+y el reenvío de aplicación ocurre en el puente, no en el núcleo IP. Ese diseño acepta el árbol como topología física a cambio de no pelear con la máquina de estados P2P del fabricante.
+
+La literatura de grupos múltiples explica por qué esa pelea es costosa. Un GO Android publica de forma sistemática la misma dirección IPv4; un nodo que es GO y, a la vez, STA de otro GO ve esa dirección como local, y el tráfico destinado al padre no sale del aparato \parencite{Funai2017,Casetti2015}. Funai, Tapparello y Heinzelman exploran conmutación temporal de grupos, UDP multicast y un esquema híbrido UDP/TCP para sortear esa colisión; Casetti y colaboradores introducen un cliente relé dentro del grupo para la comunicación intergrupo \parencite{Funai2017,Casetti2015}. Una prepublicación reciente, STREAM, propone un miembro de grupo que se une a dos BSS y tiende puentes TCP atando el socket a la interfaz correcta \parencite{Dao2024}. El protocolo propuesto no adopta el relé ni el multicast: cada nodo conserva su grupo y el enlace hacia el padre es el de la estación. La identidad del vecino se confirma por un identificador lógico, no por la dirección repetida del dueño del grupo.
+
+\subsection{Descubrimiento de servicios: mDNS y DNS-SD}
+\label{sec:dns-sd}
+
+Multicast DNS permite resolver nombres en el enlace local sin un servidor DNS unicast: las consultas y respuestas viajan a \texttt{224.0.0.251} o \texttt{FF02::FB} por el puerto 5353 \parencite{Cheshire2013mDNS}. DNS-Based Service Discovery, su compañero, organiza instancias de servicio como tripletas PTR, SRV y TXT: el cliente pregunta por un tipo \texttt{\_servicio.\_tcp} y obtiene el nombre de instancia, el puerto y un registro TXT de pares clave-valor \parencite{Cheshire2013DNSSD}. Cada cadena del TXT está limitada a 255~bytes; el RFC recomienda, además, registros compactos porque el multicast es caro en 802.11 \parencite{Cheshire2013DNSSD}.
+
+Wi-Fi Direct incorpora DNS-SD como mecanismo de anuncio dentro del grupo, de modo que una aplicación registra un servicio sin abrir ella misma un resolver multicast \parencite{WiFiAlliance2010,AndroidDevelopersWifiP2p}. El proyecto usa esa vía, y no un datagrama de aplicación, para que un nodo publique su presencia y otro lea lo necesario para asociarse. El registro de atributos transporta datos de asociación, no el mensaje del usuario, y queda por debajo del techo de 255~bytes por cadena. Una clave de grupo en claro es una concesión de laboratorio; un despliegue real exigiría un intercambio posterior y queda fuera del alcance del grado. DNS-SD no enruta: una vez leída la información de asociación, la estación se enlaza y el resto del protocolo ocurre entre vecinos ya conectados.
+
+\subsection{Restricciones de Android 12 y operación sin privilegios}
+\label{sec:android-12}
+
+El Compatibility Definition Document de Android~12 no obliga a todos los dispositivos a implementar Wi-Fi Direct: lo recomienda (\emph{SHOULD}) y, si el fabricante lo incluye, exige implementar la API pública, declarar el soporte de Wi-Fi Direct, mantener Wi-Fi de infraestructura y ---punto decisivo para un puente--- operar Wi-Fi y Wi-Fi Direct de forma concurrente \parencite{Google2021}. PCT asume terminales \emph{handheld} que declaran esa característica y que no son Go Edition. El mismo CDD trata la memoria de 2~GB como umbral a partir del cual cambian otras obligaciones de plataforma; el anteproyecto toma ese umbral como piso práctico de laboratorio \parencite{Google2021}.
+
+Operar sin \emph{root} implica aceptar el perímetro de las APIs públicas. No hay inyección de \emph{beacons} 802.11 de aplicación, no hay NAT del núcleo para multisalto, no hay tabla de reenvío IP entre la interfaz P2P y la STA, y, desde Android~13, el acceso a dispositivos Wi-Fi cercanos exige un permiso específico \parencite{AndroidDevelopers2024,Google2021}. El descubrimiento, la asociación y el TCP deben caber en espacio de usuario. Esa es la razón de subir el protocolo a la capa de aplicación: no es una preferencia estética, es la única superficie estable en un teléfono de consumo.
+
+El modelo OSI se usa aquí solo como mapa de responsabilidades, no como pila implementada. La Tabla~\ref{tab:osi-pct} resume el reparto.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Correspondencia entre el mapa OSI de referencia y las responsabilidades de PCT}
+\label{tab:osi-pct}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{3.2cm} X @{}}
+\toprule
+Capa OSI (ref.) & Nombre en el protocolo & Responsabilidad \\
+\midrule
+1 --- Física & Radio & Grupo propio, estación hacia el padre y descubrimiento de servicios, sobre 802.11. \\
+2 --- Enlace & Vecindad & Identidad del vecino, sentido del enlace y anuncios de ruta. La dirección IP no sale de esta capa. \\
+3 --- Red & Reenvío & El destino es un identificador lógico; el siguiente salto lo elige la tabla de vecinos. \\
+Aplicación & Mensajería & El texto del usuario no ve direcciones de enlace. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La regla es simple: por encima del enlace solo hay identificadores lógicos. Quien reenvía no consulta la dirección IP del destino final.
+
+\section{Antecedentes o estado del arte}
+\label{sec:estado-arte}
+
+En el campo de las redes sin infraestructura se han propuesto protocolos de capa de red, radios de largo alcance y aplicaciones de mensajería sobre Bluetooth o Wi-Fi. A continuación se examinan las iniciativas más próximas al problema de PCT ---enrutar y reconfigurar una topología multisalto en terminales cotidianos--- y se precisa qué hereda el diseño y qué descarta.
+
+\subsection{Ad hoc On-Demand Distance Vector (AODV)}
+
+AODV es el protocolo reactivo de referencia de las MANET. Cuando un origen necesita un destino, inunda un \texttt{RREQ}; el destino, o un nodo con ruta fresca, responde con un \texttt{RREP} que instala el camino de retorno. Los números de secuencia evitan ciclos y permiten distinguir una ruta nueva de una antigua \parencite{Perkins2003,Perkins2001}. El coste de control aparece sobre todo en el descubrimiento y en la reparación, no en un mapa periódico de toda la red. Esa economía es atractiva en terminales a batería.
+
+AODV, sin embargo, se especifica como protocolo de capa de red: asume que el sistema operativo puede inundar, instalar rutas IP y emitir \texttt{RERR} cuando se rompe un enlace \parencite{Perkins2003}. En un Android no modificado esa superficie no existe para una aplicación de usuario. El proyecto hereda de ahí la idea de reaccionar cuando un enlace deja de responder, y la sitúa en la capa de aplicación, donde no hay difusión de solicitudes de ruta en el aire ni tabla de rutas del núcleo.
+
+\subsection{Optimized Link State Routing (OLSR)}
+
+OLSR es el contrapunto proactivo. Los nodos inundan el estado de sus enlaces ---comprimido mediante multipoint relays--- y cada uno calcula rutas como si tuviera un mapa local del grafo \parencite{Clausen2003}. El beneficio es latencia de primer paquete baja; el coste es tráfico de control continuo, sensible al tamaño y a la densidad \parencite{Toh2002}. Al igual que AODV, OLSR vive en la capa de red y resulta inviable en Android \emph{retail} sin alterar la pila.
+
+De OLSR se rescata el hábito de anunciar a los vecinos un resumen de destinos conocidos, para que cada uno actualice su tabla. No hay retransmisores multipunto ni un mapa periódico de toda la red: el anuncio viaja por el enlace ya establecido.
+
+\subsection{Meshtastic}
+
+Meshtastic es una red mesh de código abierto pensada para comunicación fuera de la red eléctrica y celular. Su medio es LoRa, no 802.11: alcanza distancias de kilómetros a costa de un ancho de banda del orden de kilobits por segundo y de un periférico radio adicional \parencite{MeshtasticProject2023}. En emergencias de área amplia esa apuesta es razonable. Para mensajería interactiva entre teléfonos que ya tienen Wi-Fi, el cuello de botella de LoRa y la dependencia de hardware externo la apartan del problema que formula este trabajo. PCT no compite en alcance radioeléctrico; compite en no exigir nada que el usuario no lleve ya en el bolsillo.
+
+\subsection{Bridgefy y Briar}
+
+Bridgefy popularizó la mensajería sin Internet sobre una malla Bluetooth, y se anunció para protestas y zonas sin cobertura. El análisis de Albrecht, Blasco, Jensen y Mareková en CT-RSA 2021 mostró que el protocolo no cumplía sus promesas de confidencialidad, autenticación ni resistencia: era posible suplantar identidades, leer o inyectar tráfico y denegar el servicio \parencite{Albrecht2021a}. Tras adoptar libsignal, un segundo estudio ---USENIX Security 2022--- demostró que las fallas estructurales persistían, incluida una condición TOCTOU que eludía las garantías de Signal y la recuperación de mensajes de \emph{broadcast} sin la clave de red \parencite{Albrecht2022}. El código cerrado, además, impide auditar el enrutamiento. PCT no implementa cifrado de extremo a extremo ---queda fuera de alcance---, pero tampoco presenta Bridgefy como precedente de seguridad: lo cita como evidencia de que una malla de aplicación sobre radios de consumo es técnicamente posible y, a la vez, insuficiente si el control topológico y la identidad no se diseñan con rigor.
+
+Briar es el contraste de código abierto. Ofrece mensajería cifrada de extremo a extremo sobre Bluetooth y Wi-Fi, con Tor cuando hay Internet, y está pensada para periodistas y activistas \parencite{BriarProject2021}. Su malla, sin embargo, se construye entre contactos previamente introducidos: no hay unión oportunista a un extraño que acaba de encender el teléfono. Esa restricción es coherente con su modelo de amenaza y, al mismo tiempo, limita la cobertura en una red post-desastre donde los vecinos no se conocen de antemano. PCT invierte la prioridad: primero forma topología entre nodos desconocidos; el cifrado queda para trabajo futuro.
+
+\subsection{BitChat}
+
+BitChat, anunciado en 2025, es una aplicación de chat en malla sobre Bluetooth Low Energy, con reenvío por inundación y un campo TTL que evita bucles, y con Nostr como respaldo cuando los dispositivos ya no comparten el mismo enlace BLE pero sí tienen Internet \parencite{Biagioni2026}. Biagioni describe una pila de aplicación, sesión, cifrado (Noise \texttt{XX} con Curve25519 y ChaCha20-Poly1305) y transporte BLE, y subraya un punto que este trabajo comparte: mucha mensajería \emph{ad hoc} en móviles acaba exigiendo privilegios de superusuario o hardware extra, lo que reduce la densidad de participantes precisamente cuando más se necesita \parencite{Biagioni2026}. BitChat evita el \emph{root} a costa del medio Bluetooth: el alcance y el ancho de banda quedan acotados por ese estándar, y el enrutamiento es inundación, no una tabla por destino. El protocolo propuesto toma el camino inverso en la radio ---Wi-Fi convencional, con más caudal teórico--- y un enrutamiento por identificador lógico, sin un servidor de retransmisión.
+
+\subsection{Interconexión de grupos Wi-Fi Direct}
+
+Más cerca del mecanismo físico de PCT está la línea de investigación que intenta unir varios grupos Wi-Fi Direct en Android. El estándar P2P forma un BSS por GO, no una MANET \parencite{WiFiAlliance2010,CampsMur2013}. Para encadenar grupos, Funai y colaboradores muestran que un nodo puede ser simultáneamente cliente P2P de un grupo y cliente legacy de otro, pero que la IPv4 repetida del GO rompe el TCP unicast hacia el padre \parencite{Funai2017}. Casetti y colaboradores resuelven la bidireccionalidad intergrupo con un cliente relé que no es GO \parencite{Casetti2015}. STREAM insiste en el mismo diagnóstico y propone un miembro que tiende dos TCP atados a interfaces distintas \parencite{Dao2024}.
+
+Esas propuestas confirman dos hechos: en un teléfono de serie, el puente físico realista combina el grupo propio con una estación hacia otro grupo, y usar la dirección repetida del dueño del grupo como destino es un error. Difieren en quién hace de puente. El protocolo propuesto no convierte al puente en un simple cliente relé: cada nodo conserva su grupo y el enlace hacia el padre es el de la estación.
+
+\subsection{Posicionamiento frente a las alternativas}
+
+Las propuestas anteriores resuelven partes del problema y dejan otras abiertas. AODV y OLSR organizan rutas multisalto, pero lo hacen en la capa de red y, en un Android de consumo, eso exige alterar el sistema operativo \parencite{Perkins2003,Clausen2003}. Meshtastic cubre distancia en emergencias, a cambio de un radio LoRa y de un caudal bajo \parencite{MeshtasticProject2023}. Bridgefy y Briar muestran que una aplicación puede comunicar teléfonos sin infraestructura; la primera arrastra fallas de identidad y confidencialidad, y la segunda no admite vecinos que no se hayan presentado antes \parencite{Albrecht2021a,BriarProject2021}. BitChat evita el \emph{root} y el servidor central, con inundación sobre Bluetooth y con el alcance y el ancho de banda de ese medio \parencite{Biagioni2026}. Los trabajos de interconexión de grupos Wi-Fi Direct se acercan al teléfono de serie, pero el puente queda en un relé, en la conmutación de grupo o en el multicast \parencite{Funai2017,Casetti2015,Dao2024}.
+
+Ninguna de esas filas cubre a la vez Wi-Fi convencional, operación en capa de aplicación, ausencia de \emph{root} y formación de topología entre nodos que no se conocen de antemano. Ese es el hueco del protocolo propuesto. Cómo se descubre un vecino, cómo se enlaza y cómo se reconfigura la red corresponde al diseño metodológico, no a esta comparación.
+
+\subsection{Análisis comparativo}
+
+La Tabla~\ref{tab:analisis_comparativo} pone en una misma lectura el medio, el requisito de privilegios y la limitación central de cada alternativa. La última fila no describe mecanismos del protocolo: señala que la propuesta busca no heredar, juntas, esas limitaciones.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Análisis de soluciones frente al protocolo propuesto}
+\label{tab:analisis_comparativo}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{2.7cm} >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}X @{}}
+\toprule
+Protocolo / sistema & Medio & ¿Requiere root? & Limitación central \\
+\midrule
+AODV / OLSR & Wi-Fi, capa de red & Sí, en Android de consumo & Inviable sin alterar la pila del sistema operativo \parencite{Perkins2003,Clausen2003}. \\
+Meshtastic & LoRa & No & Radio externa y caudal de kilobits por segundo \parencite{MeshtasticProject2023}. \\
+Bridgefy & Bluetooth, capa de aplicación & No & Fallas graves de autenticación y confidencialidad \parencite{Albrecht2021a,Albrecht2022}. \\
+Briar & Bluetooth y Wi-Fi, capa de aplicación & No & Multisalto restringido a contactos ya introducidos \parencite{BriarProject2021}. \\
+BitChat & Bluetooth, capa de aplicación & No & Ancho de banda y alcance limitados por Bluetooth \parencite{Biagioni2026}. \\
+Funai, Casetti y STREAM & Wi-Fi Direct entre grupos & No & El puente depende de un relé, de conmutar de grupo o de multicast \parencite{Funai2017,Casetti2015,Dao2024}. \\
+\midrule
+\textbf{Propuesta actual} & \textbf{Wi-Fi estándar} & \textbf{No, capa de aplicación} & \textbf{Ninguna de las anteriores a la vez. Busca auto-organizar la red sin tocar el sistema operativo.} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Marco legal}
+\label{sec:marco-legal}
+
+El desarrollo involucra software, datos de usuario y radiocomunicaciones en bandas de uso libre. Debe alinearse con el régimen colombiano de protección de datos, de TIC y de derecho de autor.
+
+\subsection{Ley 1581 de 2012 y Decreto 1377 de 2013}
+
+La Ley Estatutaria 1581 de 2012 dicta el régimen general de protección de datos personales y desarrolla los derechos de conocer, actualizar y rectificar la información recabada, en el marco de los artículos~15 y~20 de la Constitución \parencite{CongresoRepublica2012a}. El Decreto 1377 de 2013 la reglamenta en lo relativo a la autorización del titular, las políticas de tratamiento, el ámbito personal o doméstico y la responsabilidad demostrada; sus disposiciones sustanciales fueron compiladas después en el Decreto Único 1074 de 2015 \parencite{Presidencia2013}.
+
+Bajo ese marco, PCT se concibe como un prototipo de laboratorio y demostración académica, no como un responsable del tratamiento en producción. En el diseño vigente solo circulan los identificadores necesarios para enrutar y el texto que un usuario envía de forma voluntaria. Las credenciales del grupo, si se anuncian, quedan limitadas al laboratorio; no se persiste el mensaje ajeno ni se construye una base de datos de contenidos de terceros. Una eventual explotación fuera del laboratorio exigiría aviso de privacidad, autorización explícita y minimización efectiva, obligaciones que este trabajo no pretende satisfacer con el prototipo.
+
+\subsection{Ley 1341 de 2009}
+
+La Ley 1341 de 2009 define principios y conceptos de la sociedad de la información y de la organización del sector TIC, y consagra, entre otros, el acceso a las comunicaciones, la investigación tecnológica y la neutralidad tecnológica \parencite{CongresoRepublica2009}. El proyecto se alinea con esa ley en tanto explora una forma de extender conectividad cuando los servicios convencionales no están disponibles, usando una tecnología de uso masivo ---Wi-Fi--- sin imponer un estándar propietario de radio. No constituye un servicio de telecomunicaciones habilitado ni un uso de espectro distinto del previsto para las bandas ISM en las que opera 802.11 \parencite{IEEE2020}.
+
+\subsection{Derecho de autor}
+
+La Ley 23 de 1982 y la Ley 1915 de 2018 ---esta última modifica la primera y ajusta el régimen a los tratados vigentes--- protegen las obras de software como creaciones originales \parencite{CongresoRepublica1982,CongresoRepublica2018}. El código, la especificación y el texto de este trabajo son obra de sus autores en el marco de un proyecto de grado. Las bibliotecas y APIs de Android, los RFC y el estándar IEEE se usan bajo sus propias licencias y condiciones de cita; no se reproduce de ellos más que lo necesario para identificar interfaces y números de documento. El protocolo no incorpora motor de cifrado de terceros que deba relicenciarse para el grado, porque el cifrado de extremo a extremo quedó fuera de alcance.
+
+\section{Síntesis del capítulo}
+\label{sec:sintesis-marco-teorico}
+
+El marco teórico deja sentado que una MANET multisalto en teléfonos de consumo no puede copiar AODV ni OLSR en la capa de red, ni tampoco importar Meshtastic, Bridgefy, Briar o BitChat sin heredar su radio, su modelo de contactos o su inundación BLE. El hueco que ocupa el protocolo es más estrecho: control topológico en capa de aplicación, sobre el Wi-Fi que el teléfono ya trae, sin privilegios de superusuario. Esa arquitectura nace de las restricciones documentadas de Android~12 y de la colisión de IPv4 entre Group Owners, no de una analogía libre con el modelo OSI. En la línea de investigación institucional, el protocolo es el mecanismo con el que una red \emph{ad hoc} de cobertura ampliada puede formarse ---y reformarse--- sobre la radio que las personas ya llevan encima cuando falla la infraestructura.
+
+% ---------- DISEÑO METODOLÓGICO ----------
+\chapter{Metodología}
+\label{ch:metodo}
+Para el desarrollo del presente proyecto se implementó una metodología incremental. Este enfoque de ingeniería de software se basa en la construcción del sistema a través de entregas parciales y sucesivas, denominadas incrementos. En cada incremento se realiza un ciclo que abarca el análisis, diseño, implementación y pruebas de un conjunto específico de requisitos funcionales, lo que permite validar progresivamente el protocolo propuesto.
+
+A diferencia de un modelo lineal tradicional, el desarrollo iterativo facilita la retroalimentación continua y la detección temprana de errores conceptuales o técnicos. Esta característica resulta fundamental para el diseño de un protocolo sobre capas de abstracción no nativas (capa de aplicación en Android), donde limitaciones imprevistas de las APIs o comportamientos anómalos del entorno de red requieren ajustes dinámicos de diseño sin afectar todo el ciclo de vida del proyecto.
+
+\section{Roles y responsabilidades}
+
+El equipo de trabajo está conformado por integrantes que asumieron roles complementarios durante las iteraciones, siguiendo lineamientos inspirados en marcos de trabajo ágiles adaptados al desarrollo académico:
+
+\begin{itemize}
+    \item \textbf{Equipo de Desarrollo (Estudiantes proyectantes):}
+        \begin{itemize}
+            \item \textbf{Juan Carlos Clavijo:} Responsable del diseño lógico del protocolo, la arquitectura concurrente, el desarrollo de los algoritmos de enrutamiento (tablas de salto) y la lógica de detección de fallos mediante \textit{heartbeats}.
+            \item \textbf{Brandon Stiven Ganzo:} Encargado de la implementación de la capa de comunicación de bajo nivel (UDP broadcast), el túnel de control TCP, el desarrollo del subsistema de mensajería y el diseño de la interfaz gráfica de usuario.
+        \end{itemize}
+    \item \textbf{Director del Proyecto:} Cumple el rol de orientador metodológico y técnico. Su responsabilidad es velar por el rigor del proceso, validar la coherencia conceptual del diseño con la teoría de redes distribuidas y evaluar los incrementos desarrollados, asegurando que cada entrega aporte al cumplimiento de los objetivos específicos.
+\end{itemize}
+
+\section{Fases del proyecto y desarrollo iterativo}
+
+El proyecto se organizó en cuatro iteraciones o incrementos principales correspondientes al desarrollo del protocolo y su aplicación en el sistema demostrativo. Cada fase culmina con un entregable verificable.
+
+\subsection{Incremento 1: Análisis y diseño de la arquitectura base}
+Este incremento establece los cimientos lógicos del sistema. Incluye la revisión de los estándares técnicos (Wi-Fi Manager, Wi-Fi Direct) y protocolos de red ad hoc de referencia (AODV, OLSR), definiendo cómo se aplicaron las reglas de enrutamiento distribuidas en un entorno sin infraestructura.
+\begin{itemize}
+    \item \textbf{Actividades:} Identificación de requerimientos, análisis de restricciones en APIs de Android (desde Android 12 en adelante), diseño lógico de las estructuras de datos de enrutamiento y concepción arquitectónica del sistema operativo concurrente.
+    \item \textbf{Entregables:} Documento de requerimientos priorizado, diagramas de clases y de secuencia del protocolo de comunicación base.
+\end{itemize}
+
+\subsection{Incremento 2: Descubrimiento de nodos y topología inicial}
+Se procedió con la implementación de los servicios de anuncio y la formación de una red local autónoma mediante la asignación de roles de acceso (SoftAP) y puntos cliente.
+\begin{itemize}
+    \item \textbf{Actividades:} Desarrollo del módulo de anuncio por broadcast UDP, programación de los sockets TCP para el establecimiento de enlaces seguros y creación de la interfaz (UI) básica de inicio de sistema en Android.
+    \item \textbf{Entregables:} Aplicación capaz de identificar vecinos en el mismo espectro de cobertura Wi-Fi y establecer un enlace de una vía entre dos nodos sin intervención externa.
+\end{itemize}
+
+\subsection{Incremento 3: Enrutamiento y mensajería en red multisalto}
+Este incremento corresponde al núcleo del proyecto. Sobre los nodos enlazados, se diseñaron e implementaron las tablas de estados de los vecinos (routing tables) que posibilitan extender la comunicación a nivel escalonado. Se integraron mensajes de control inter-nodos (señalizadores) y mensajes de carga útil (texto o chat de usuario).
+\begin{itemize}
+    \item \textbf{Actividades:} Desarrollo del algoritmo de propagación de rutas basándose en TTL y secuencias numéricas, control de ciclos infinitos, e implementación del intercambio estructurado de mensajes entre nodos no directos.
+    \item \textbf{Entregables:} Software beta con capacidad de intercambio de mensajes bidireccional abarcando una cadena mínima de 3 dispositivos intermedios.
+\end{itemize}
+
+\subsection{Incremento 4: Reconfiguración topológica, validación y escalamiento}
+Fase final de análisis dinámico donde ocurrieron las disrupciones para validar las facultades resilientes. Se incorporaron las funciones lógicas de detección de desconexión abrupta por medio de "heartbeats" regulares o fallos de envíos.
+\begin{itemize}
+    \item \textbf{Actividades:} Programación del procedimiento de purga de rutas rotas tras intervalos temporizados, programación de re-generación e incrustación de métricas automáticas, y pruebas empíricas experimentales completas.
+    \item \textbf{Entregables:} Versión estable con reconexión reactiva demostrable ante apagados sistemáticos, recolección depurada de datos empíricos e informe con los manuales/documentación.
+\end{itemize}
+
+Para propósitos de organización, la Tabla \ref{tab:met-sprints} detalla las acciones condensadas de estos procesos en sus respectivos incrementos funcionales.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Resumen de incrementos, actividades y entregables del desarrollo}
+\label{tab:met-sprints}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash\hyphenpenalty=10000\exhyphenpenalty=10000\bfseries}p{2.5cm} >{\raggedright\arraybackslash\hyphenpenalty=10000\exhyphenpenalty=10000}X >{\raggedright\arraybackslash\hyphenpenalty=10000\exhyphenpenalty=10000}p{4.5cm} @{}}
+\toprule
+Incremento & Tareas principales & Entregables \\
+\midrule
+1. Análisis y Diseño & Levantamiento de requerimientos, análisis de restricciones en Android, diseño de arquitectura concurrente. & Requisitos documentados, diagramas UML / de Secuencia. \\
+2. Conectividad Base & Programación UDP broadcast, establecimiento de túnel de transmisión TCP-IP en dispositivos en corto rango. & Módulo de escaneo emparejado entre 2 nodos. \\
+3. Subsistema de enrutamiento & Programación lógica del intercambio de tablas (routing), sistema de contención anti-ciclos e interfaz de mensajería (chat). & Red conformable por $\geq$ 3 saltos simultáneos y funcionales. \\
+4. Estabilidad y Pruebas & Lógica de latidos, sistema de reconstrucción automática tras la caída de puentes e inyección de datos experimentales. & Versión final, registros empíricos, manual y documentaciones finales. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Técnicas e instrumentos de validación experimental}
+
+Dado el enfoque puramente tecno-experimental, la validación del trabajo reposa sobre el desempeño real del producto derivado de la programación en laboratorio y no de análisis sociodemográficos u observación participativa teórica.
+
+Los ensayos se desarrollaron creando redes preconfiguradas y redes emergentes (espontáneas) empleando múltiples terminales móviles controlados. Se evaluó el cumplimiento de cada requisito funcional establecido en el incremento preliminar. Las variables observadas consistieron en:
+
+\begin{itemize}
+    \item \textbf{Tiempo de reconexión adaptativo:} Fracción en milisegundos que la red invirtió hasta encontrar y propiciar un nuevo recorrido efectivo cuando el enlace principal se interrumpe artificialmente.
+    \item \textbf{Estabilidad operativa y profundidad:} Verificación del máximo de escalonamiento estructural (saltos) permitidos en función del ancho de banda y latencia originada por la retransmisión computarizada de la pasarela de Android.
+\end{itemize}
+
+\section{Organización temporal}
+
+El periodo de desarrollo comprendió 12 semanas (un ciclo académico típico), distribuyendo las cargas entre los dos integrantes del equipo: \textbf{Juan Carlos Clavijo (JC)} y \textbf{Brandon Stiven Ganzo (BS)}.
+
+El cronograma se presenta en la Tabla \ref{tab:met-cronograma}, relacionando las tareas de los cuatro incrementos con las semanas en que fueron abordadas y el enfoque de las responsabilidades, siendo tareas individuales supervisadas o ejercicios colaborativos íntegros.
+
+\vspace{-0.5cm}
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Cronograma de actividades por semanas y responsables}
+\label{tab:met-cronograma}
+\renewcommand{\arraystretch}{1.1}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{@{} >{\raggedright\arraybackslash\bfseries}p{6cm} c cccccccccccc @{}}
+\toprule
+\textbf{Actividades (Fases)} & \textbf{Resp.} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{11} & \textbf{12} \\
+\midrule
+\multicolumn{14}{l}{\textit{Incremento 1: Análisis y diseño arquitectónico}} \\
+Levantamiento de requerimientos de API & Ambos & X & X & & & & & & & & & & \\
+Diseño lógico y modelo concurrente & JC & & X & X & & & & & & & & & \\
+\midrule
+\multicolumn{14}{l}{\textit{Incremento 2: Descubrimiento de nodos}} \\
+Programación de señales de anuncio y descubrimiento & BS & & & & X & X & & & & & & & \\
+Túnel de control TCP y emparejamiento & Ambos & & & & & X & X & & & & & & \\
+\midrule
+\multicolumn{14}{l}{\textit{Incremento 3: Enrutamiento y mensajería}} \\
+Algoritmo de salto e intercambio de tablas & JC & & & & & & & X & X & & & & \\
+Capa de demostración e interfaz (Chat) & BS & & & & & & & & X & X & & & \\
+\midrule
+\multicolumn{14}{l}{\textit{Incremento 4: Fallos y reconstrucción}} \\
+Detección de apagados (Heartbeats) & JC & & & & & & & & & & X & X & \\
+Pruebas empíricas y empaquetado final & Ambos & & & & & & & & & & & X & X \\
+\bottomrule
+\end{tabular}
+}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} Aunque algunos módulos tienen un responsable principal de codificación, la revisión y la fase de pruebas fueron ejecutadas por ambos.
+\end{table}
+
+\chapter{Desarrollo del proyecto}
+
+El desarrollo dejó el Protocolo de Control Topológico (PCT) como biblioteca de aplicación para Android 12 o superior, sin privilegios de superusuario y sin modificar las capas MAC ni PHY de IEEE 802.11 \parencite{IEEE2020,Google2021}. Esa biblioteca, \texttt{co.uan.pct:core}, es la que usa la aplicación demostrativa \texttt{pctmesh} para mostrar la pantalla de depuración y el chat; el conjunto se construyó con Kotlin y Gradle, sobre la API 31, la de Android 12, cuyo documento de compatibilidad exige Wi-Fi Direct y al menos 2~GB de RAM en los perfiles considerados \parencite{Google2021}.
+
+La arquitectura tiene tres capas, y el modelo OSI sirvió solo de mapa para nombrarlas \parencite{Tanenbaum2011}. La capa física administró la radio, esto es, el grupo propio, la asociación como estación al padre y el anuncio para que otro nodo lo encuentre. La de enlace abrió dos conexiones TCP con cada vecino, acordó quién era el padre y quién el hijo, y guardó la tabla de rutas, de manera que las direcciones IP no salieron de ahí. La de red reenvió el mensaje del usuario hacia un identificador de nodo, sin conocer la subred del grupo, y encima el chat entregó y recibió texto. Separar así las capas evitó el error, frecuente en prototipos sobre Android, de mezclar la ruta del sistema operativo con la identidad de la malla \parencite{TanenbaumVanSteen2007}.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Mapa de capas de PCT y responsabilidades implementadas}
+\label{tab:met-capas}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash\bfseries}p{2.2cm} >{\raggedright\arraybackslash}p{3.4cm} X @{}}
+\toprule
+Capa & Nombre en PCT & Responsabilidad \\
+\midrule
+L1 & Radio Wi-Fi & Crea el grupo, se asocia al nombre y a la clave del padre, anuncia y busca. \\
+L2 & Enlace TCP y tabla & Control en el puerto 8765 y datos en el 8766. Decide el sentido del enlace y guarda las rutas. La dirección IP solo vive aquí. \\
+L3 & Reenvío de usuario & Envía a un identificador de nodo: consulta el siguiente salto y escribe en el canal de datos. \\
+Aplicación & Chat de demostración & Texto hacia un destino de la tabla. No ve conexiones ni direcciones de enlace. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La biblioteca se usa en cuatro momentos que se siguen. Al inicializar se carga o se crea el identificador del nodo y se guarda en las preferencias de la aplicación; al arrancar se abren primero las escuchas TCP y después la radio; mientras está en marcha atiende vecinos y mensajes; al cerrar se detiene la búsqueda, se retira el anuncio, se suelta la estación y se elimina el grupo, para que un grupo que quede encendido no engañe al siguiente arranque.
+
+\section{Incremento 1 ejecutado: requisitos, restricciones y decisiones de diseño}
+
+El primer incremento no produjo aún la biblioteca de producción. Produjo el contrato frente al cual se midió todo lo posterior: requisitos funcionales y no funcionales, restricciones de plataforma, modelo de enlace, catálogo de servicios y de tramas, máquinas de estado, matriz de validación y un prototipo de dos teléfonos.
+
+Los requisitos obligatorios fijaron que cada nodo tuviera un identificador único de 128 bits y que todos arrancaran como dueños de su propio grupo. Formar la topología uniéndose como cliente de Wi-Fi Direct quedó prohibido, porque esa operación convierte al teléfono en miembro y le impide mantener un grupo propio, de modo que el enlace hacia el padre es el de una estación y, con el grupo activo, el nodo anuncia un servicio y abre el TCP una vez asociado. La tabla de rutas usa el identificador del nodo y no la dirección IP, así que esta solo transporta un salto y no hay una dirección de extremo a extremo \parencite{Tanenbaum2011}. Sobre esa tabla se pidieron también la prevención de ciclos, los latidos entre vecinos directos, la detección de fallo y la reconfiguración sin cambiar el nombre del grupo. Como deseables quedaron la cadena de tres nodos, la unión tardía y la continuidad de una conversación, y quedaron fuera el cifrado de extremo a extremo y la calidad de servicio.
+
+El análisis de plataforma dejó las restricciones de las que salió el resto del diseño. Una aplicación no puede emitir balizas 802.11 propias, y unirse como cliente del grupo ajeno convierte al teléfono en miembro, de modo que deja de poder crear el suyo y aceptar hijos. Como tampoco es común, en un teléfono de mostrador, mantener a la vez una estación y un punto de acceso clásico, los hijos se aceptan con el grupo Wi-Fi Direct propio. A eso se suma que todo dueño de grupo en Android ocupa la dirección \texttt{192.168.49.1}, que la aplicación no puede cambiar: quien es dueño de su grupo y a la vez estación de otro ve esa dirección como propia, y el sistema entrega en el propio aparato los paquetes que debían salir hacia el padre. Por eso el TCP hacia el padre no usa esa dirección, y cada conexión saliente queda atada a la red de la estación \parencite{AndroidDevelopers2024}.
+
+De esa restricción salió la regla del enlace: todo nodo es dueño de su propio grupo, y los enlaces del árbol se hacen asociándose, como estación, al nombre y a la frase de paso del padre. El nombre del grupo sale del identificador del nodo y no lleva el rol ni la profundidad, así que un cambio de ruta no obliga a recrear el grupo. En el perfil mínimo hay un solo enlace hacia el padre, y por eso la topología física es un árbol; un perfil más amplio podría guardar rutas de respaldo, pero ese no es el que se implementó \parencite{Akyildiz2005}.
+
+Se distinguieron cuatro roles, que la Tabla~\ref{tab:met-roles-logicos} resume. ISLAND es quien busca padre. ROOT es quien no lo tiene y, por eso, anuncia y acepta hijos; el nombre no le da facultades extra, solo registra esa ausencia. BRIDGE ya tiene padre y además acepta hijos. LEAF, en el perfil estricto, es un hijo que no acepta más descendientes, aunque en el perfil usado aquí también mantiene su propio grupo, para que cualquier nodo pueda extender el árbol. La radio recorre esas situaciones en orden: el arranque, el grupo listo sin padre, el grupo con estación hacia el padre, y la vuelta a buscar si el padre se pierde.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Roles lógicos y estado de las interfaces}
+\label{tab:met-roles-logicos}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{1.8cm} >{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}p{2.6cm} X @{}}
+\toprule
+Rol & STA \textit{upstream} & Acepta hijos & Servicio de anuncio \\
+\midrule
+ISLAND & No & No, busca padre & Anuncio de búsqueda \\
+ROOT   & No & Sí & Anuncio de control \\
+BRIDGE & Sí & Sí & Anuncio de control \\
+LEAF   & Sí & No, en el perfil estricto & Anuncio de control, y grupo propio \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+El descubrimiento usa dos anuncios. El de búsqueda lo publica el nodo que todavía no tiene padre; el de control lo publican la raíz, el puente y la hoja, y lleva la versión, el identificador, el rol, la profundidad, el puerto de control, el nombre del grupo y la frase de paso, con cada cadena por debajo de 255 bytes. La frase de paso viajó en claro solo en el laboratorio, de acuerdo con el marco de protección de datos personales \parencite{CongresoRepublica2012a}. En el prototipo de dos teléfonos el registro remoto no siempre llegaba, aunque el nombre del servicio sí, y por eso las credenciales también se empaquetaron en ese nombre, como respaldo.
+
+El catálogo de tramas del diseño fijó un encabezado común de 12 bytes, con una marca de reconocimiento, la versión, el tipo, unas banderas y la longitud de la carga, y los mensajes que cabían en él: el saludo, la oferta y la respuesta de unión, el compromiso, el anuncio de topología, el latido y su respuesta, el aviso de nodo caído y el dato de usuario, más la regla de leer exactamente los bytes que el encabezado declara. Ese catálogo fue el contrato del enrutamiento y de la matriz de pruebas. Cuando la capa de enlace se probó fuera de Android, los mensajes pasaron a ser líneas de texto más cortas, con el mismo sentido de identidad, resumen de rutas y latido, porque la unión Wi-Fi ya se había resuelto en la radio y no hacía falta repetirla dentro de la conexión.
+
+La unión se pensó como un recorrido de cuatro momentos, nodo aislado, oferta recibida, asociación en curso y miembro, con tiempos de diseño que no se midieron en campo: 3 segundos para la elección de raíz, 5 para el descubrimiento, 10 para la oferta, 15 para la asociación y 15 de silencio para dar por perdido a un vecino. Desde el aislamiento hay dos caminos, anunciar la presencia y esperar una oferta, o leer el anuncio de control y asociarse directamente, y el prototipo y la biblioteca siguieron este segundo.
+
+El primer experimento de radio usó dos teléfonos, cada uno con su grupo, y el hijo asociado como estación al nombre del padre, sin unirse como cliente del grupo. No hubo todavía conexión de control ni un tercer salto. Sirvió para comprobar, en teléfonos de mostrador, que un nodo puede mantener su grupo y a la vez ser estación de otro, antes de construir el enlace y el reenvío.
+
+\section{Incremento 2 ejecutado: descubrimiento, bootstrap y capa de enlace}
+
+El segundo incremento construyó la biblioteca y sustituyó el enlace manual del prototipo por un arranque automático, con la radio en un solo flujo. Al arrancar se limpia lo que hubiera quedado de una ejecución anterior, esto es, búsqueda, anuncio, estación y grupo, y durante 10 segundos se busca sin crear grupo propio. Si en esa ventana aparece un anuncio con nombre y frase de paso, el nodo se asocia como estación, informa a la capa de enlace de que ya tiene padre y, enseguida, crea su propio grupo y anuncia; si no aparece nadie, se convierte en raíz y hace lo mismo. Después de ese arranque la búsqueda no queda encendida todo el tiempo, sino cinco segundos en un instante al azar de cada minuto, para que dos raíces no busquen a la vez. Esa cadencia salió del prototipo, donde se vio que con el grupo activo quien busca también tiene que estar anunciando, que si los dos descubren al mismo tiempo el registro no llega, y que buscar con más frecuencia cortaba las consultas con las que Wi-Fi Direct transporta ese registro.
+
+El nombre del grupo propio empieza por \texttt{DIRECT-}, como exige Wi-Fi Direct, y sigue con un recorte del identificador del nodo. La frase de paso de laboratorio se deriva del mismo identificador. Si el teléfono rechaza el nombre, se reintenta con otra banda y, al final, se deja que el sistema asigne el nombre. Quien identifica al nodo no es ese nombre, sino el identificador anunciado y, después, confirmado en el TCP.
+
+La asociación como estación se pidió como red local, sin exigir salida a Internet. A diferencia del prototipo, que ataba todo el proceso a esa red, la biblioteca ata cada conexión saliente, para que el tráfico hacia el padre no salga por el grupo propio. El destino no fue \texttt{192.168.49.1}: a partir de la dirección física que la estación ve en el grupo del padre se construyó la dirección de enlace local, ligada a esa interfaz. Esas direcciones no chocan, porque cada una pertenece a su interfaz, mientras que la \texttt{192.168.49.1} de todos los grupos sí choca; solo si la dirección física venía oculta se usó, como último recurso, la pasarela de la red de la estación.
+
+La radio no abre TCP, sino que le entrega a la capa de enlace la dirección, los puertos y la forma de atar la conexión, y solo vuelve a intervenir si los dos nodos se asociaron el uno al otro, en cuyo caso pide soltar la estación, o si se pierde la red de esa estación, en cuyo caso el nodo vuelve a anunciarse como raíz de lo que le queda, sin eliminar el grupo.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Canales TCP por vecino directo}
+\label{tab:met-canales}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} l c X @{}}
+\toprule
+Canal & Puerto & Contenido \\
+\midrule
+Control & 8765 & Identidad, sentido de arista, resumen de rutas, latidos. \\
+Datos de usuario & 8766 & Únicamente cargas de aplicación; lo abría el hijo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La capa de enlace no depende de Android. Cuando hay un padre, el hijo abre la conexión de control hacia el puerto 8765, y todo nodo con grupo escucha tanto ese puerto como el 8766, por donde irán los datos. Quien abre la conexión es el hijo y quien la acepta es el padre, sin una negociación aparte para decidirlo, de modo que un nodo admite un padre y cero o más hijos.
+
+El control viaja como una línea de texto por mensaje, y son cuatro. El saludo dice el identificador propio, la profundidad, la raíz del árbol y las rutas conocidas; el anuncio de tabla manda el resumen de destinos y saltos cuando la tabla cambia; el latido y su respuesta llevan un número de secuencia. Una línea que no se reconoce se ignora y la lectura sigue. Con esos cuatro se cubre lo que el catálogo de diseño llamaba saludo, anuncio de topología y latido, porque la asociación Wi-Fi ya había ocurrido en la radio.
+
+Si los dos nodos se asocian a la vez, cada uno ve una conexión entrante del mismo identificador hacia el que él también abrió una salida. La regla, idéntica en los dos extremos y sin mensajes extra, deja como hijo al identificador mayor en orden de texto y como padre al menor, que cierra su salida y pide a la radio que suelte la estación. La decisión y el alta del vecino ocurren juntas, para que dos saludos simultáneos no se pisen.
+
+Cuando el padre acepta el saludo, el hijo abre el puerto 8766 y escribe primero sus 16 bytes de identificador, para que el padre sepa de quién es ese canal sin mirar la dirección IP; si ese canal cae y el de control sigue, el hijo lo vuelve a abrir. Control y chat no comparten conexión, porque en Android un solo TCP mezcla mal el latido periódico con las ráfagas del chat y puede bloquear la señalización \parencite{AndroidDevelopers2024}. El latido va cada 5 segundos y, si un vecino calla 15, se da por perdido: son los tiempos del diseño, no mediciones de campo.
+
+La Figura~\ref{fig:flujo-conexion} resume el recorrido con el que un dispositivo queda enlazado a otro.
+
+\begin{figure}[H]
+\centering
+\singlespacing
+\begin{tikzpicture}[
+  font=\small\linespread{1}\selectfont,
+  node distance=0.45cm and 0.7cm,
+  caja/.style={rectangle, draw, align=center, text width=5.6cm, inner sep=4pt},
+  decision/.style={diamond, draw, align=center, inner sep=1pt, aspect=2.4, text width=2.6cm},
+  flecha/.style={-{Stealth[length=2mm]}, thick}
+]
+\node[caja] (ini) {Arranque del nodo};
+\node[caja, below=of ini] (limpia) {Limpia búsqueda, anuncio, estación y grupo residual};
+\node[caja, below=of limpia] (busca) {Busca durante 10~s sin grupo propio};
+\node[decision, below=0.7cm of busca] (hay) {¿Hay anuncio?};
+\node[caja, below left=1.1cm and 0.1cm of hay] (raiz) {Crea su grupo y anuncia como raíz};
+\node[caja, below=of raiz] (escucha) {Queda a la escucha de hijos};
+\node[caja, below right=1.1cm and 0.1cm of hay] (sta) {Se asocia como estación al padre};
+\node[caja, below=of sta] (propio) {Crea su propio grupo y anuncia};
+\node[caja, below=of propio] (ctrl) {Abre el canal de control hacia el padre};
+\node[caja, below=of ctrl] (datos) {Tras el saludo, abre el canal de datos};
+\draw[flecha] (ini) -- (limpia);
+\draw[flecha] (limpia) -- (busca);
+\draw[flecha] (busca) -- (hay);
+\draw[flecha] (hay) -- node[left, font=\small] {No} (raiz);
+\draw[flecha] (raiz) -- (escucha);
+\draw[flecha] (hay) -- node[right, font=\small] {Sí} (sta);
+\draw[flecha] (sta) -- (propio);
+\draw[flecha] (propio) -- (ctrl);
+\draw[flecha] (ctrl) -- (datos);
+\end{tikzpicture}
+\caption{Flujo de conexión de un dispositivo}
+\label{fig:flujo-conexion}
+\end{figure}
+
+\section{Incremento 3 ejecutado: tabla de rutas, reenvío y mensajería}
+
+La tabla vive en la capa de enlace, que es quien tiene la conexión y, por tanto, la dirección del vecino, dirección que no se muestra ni a la capa de red ni al chat. Cada fila guarda un destino, el siguiente salto y cuántos saltos hacen falta: el propio nodo quedó a cero y cada vecino directo, a uno. Si un vecino anunciaba que llegaba a un destino en cierto número de saltos, el nodo sumaba uno, el salto hasta ese vecino, y guardaba la ruta si no tenía otra o si era más corta; la descartaba si el destino era él mismo o si pasaba de siete saltos. Cuando ese vecino dejaba de anunciar una ruta que solo existía por él, la ruta se borraba. Es la misma idea de los protocolos ad hoc que se cuentan las rutas entre vecinos, sin repartir el mapa de toda la red \parencite{Perkins2003,Clausen2003,Dijkstra1959}.
+
+Si un vecino desaparecía, porque la conexión se cerraba, porque dejaba de responder el latido o porque se perdía el enlace hacia el padre, se borraba junto con las rutas que solo pasaban por él. Quien perdía al padre volvía a ser raíz de lo que le quedaba, sin tocar su grupo, y el resumen de la tabla se enviaba a los vecinos que seguían, para que la vista se pusiera al día sin inundar toda la red.
+
+La capa de red no elige direcciones IP: recibe un identificador de destino y unos bytes. Si el destino es el propio nodo, el mensaje se entrega al chat; si no, se arma con origen, destino y un máximo de siete saltos, se pregunta a la capa de enlace quién es el siguiente y el reenvío sale solo por el puerto de datos. Cuando no hay ruta no se inventa una inundación, y el mensaje se descarta tanto si el siguiente salto es el vecino del que acaba de llegar, para no devolverlo por donde vino, como si ya solo quedaba un salto. Lleva una marca de reconocimiento, los dos identificadores, los saltos que le quedan y la longitud del texto, y es la versión corta del mensaje de datos previsto en el diseño.
+
+La aplicación tiene dos pantallas. La de la malla muestra el identificador propio, que se puede copiar, el padre, el estado del grupo y de la estación, la tabla de rutas, los anuncios que todavía no están en la tabla y un registro de diagnóstico; el chat ofrece un destino, la lista de identificadores de esa tabla y el envío de texto. Para llegar a la radio hacen falta el permiso de dispositivos Wi-Fi cercanos desde Android 13, el de ubicación precisa en versiones anteriores, y los de estado de Wi-Fi y de red \parencite{Google2021}.
+
+Este incremento se comprobó en dos planos. En la máquina virtual, sin radio, se levantaron dos y tres copias de la capa de enlace sobre el lazo local, y ahí se vio el chat de ida y vuelta, la cadena de tres en la que el del medio reenvía sin quedarse el mensaje, la caída de un extremo que retira la ruta, y el caso en que los dos se enlazan a la vez y queda una sola arista. En los teléfonos la guía fijó el orden: primero arranca y anuncia la raíz, y después el segundo busca, lee el anuncio, se asocia y abre las dos conexiones. Lo observado en ese banco está en el capítulo de resultados; aquí solo consta que la prueba existió, y que el reenvío no se dio por bueno solo en el papel.
+
+\section{Incremento 4 ejecutado: detección de fallo, pulso y cierre limpio}
+
+El cuarto incremento se dedicó a que el nodo siguiera en marcha cuando un vecino deja de responder. El latido cierra a quien calla y, con ese cierre, se borran las rutas que solo existían por él; si lo que se pierde es la estación hacia el padre, ocurre lo mismo, porque ese era el enlace que sostenía la subida. Distinto es el caso en que cae solo el canal de datos y el de control sigue vivo: el hijo lo vuelve a abrir sin destruir el grupo ni reiniciar el nodo, puesto que un corte del chat no es un corte de la topología. Quedó fuera, y se deja como trabajo futuro, la unión de dos árboles que ya se habían formado por separado.
+
+La continuidad se pensó con tres contadores que no se pisan. El de la red sube en una reconexión mayor o cuando se confirma la caída de la raíz; el del árbol, en cada unión o cada corte; el de la conversación entre dos extremos no cambia aunque cambie la ruta. En el código esto quedó más simple, porque al perder al padre el nodo vuelve a ser raíz local, conserva su grupo y su identificador, y puede volver a asociarse, de modo que el chat no tiene que cambiar la identidad del usuario. El contador de la conversación siguió en el diseño, previsto para una capa de sesión más rica, y aquí no se informa como una magnitud medida.
+
+Cerrar la aplicación forma parte del protocolo, porque un grupo que queda encendido convierte el siguiente arranque en una mentira: el nodo cree estar limpio y el teléfono sigue anunciando. Por eso el cierre espera, con un tope de tiempo, a detener la búsqueda, retirar los anuncios, soltar la estación y eliminar el grupo, una limpieza que pesó tanto en poder repetir el laboratorio como el propio saludo por TCP.
+
+Quedaron fuera de este incremento, y del alcance del anteproyecto, tener dos estaciones a la vez en el mismo teléfono, cifrar las credenciales del anuncio, un perfil de calidad de servicio y dejar de usar el descubrimiento de servicios como arranque de la radio. El anuncio de quien busca padre, y el intercambio de oferta y aceptación, sí se escribieron en el primer incremento; la biblioteca no los recorrió, porque cubrió el camino equivalente, leer el anuncio de control y asociarse como estación, que es el que el prototipo ya había mostrado viable.
+
+\section{Síntesis del capítulo}
+
+La metodología incremental permitió que cada entrega fuera un argumento, no solo un lote de código. El primer incremento fijó el contrato: grupo propio en todos los nodos, enlace como estación, identidad por identificador, dos conexiones TCP, descubrimiento de servicios y una matriz de hipótesis. El segundo hizo existir el enlace de radio y el enlace lógico. El tercero extendió ese enlace a destinos que no son vecinos. El cuarto hizo que la pérdida de un vecino no exigiera reiniciar el árbol. Los roles se mantuvieron: el diseño lógico, las tablas y los latidos en un frente; la radio, las conexiones y la interfaz en el otro. El cronograma de doce semanas organizó ese trabajo sin fecharlo en el calendario civil. El capítulo siguiente examina, con la evidencia que el laboratorio y las pruebas unitarias sí aportaron, en qué medida ese diseño se sostuvo frente a las hipótesis H1 a H5.
+
+% ---------- RESULTADOS ----------
+\chapter{Resultados obtenidos}
+\label{ch:resultados}
+La evaluación sigue la matriz del primer incremento: cinco hipótesis, de H1 a H5, y seis experimentos, de EXP-01 a EXP-06, con un sí o un no de aceptación y unos tiempos de diseño. Esos tiempos son el de unión, el de unión en cadena, la latencia de extremo a extremo, el de reconfiguración y la profundidad alcanzada. Los umbrales ---unión por debajo de 15 segundos, unión en cadena de hasta 30 segundos, latencia de hasta medio segundo en un laboratorio ideal, ningún mensaje perdido en una serie de 100, y reconfiguración de hasta 15 segundos--- salen de las constantes previas a la implementación y de la propia matriz, y no son mediciones. En el repositorio no quedó una ficha fechada con los teléfonos, un veredicto y el tiempo de unión, ni una carpeta de registros de campaña con el tamaño de la muestra. Lo que sí quedó es evidencia cualitativa en dos teléfonos, observaciones de la plataforma anotadas durante el desarrollo, y pruebas unitarias en la máquina virtual de Java, que no sustituyen los experimentos.
+
+Los instrumentos previstos fueron cuatro: los registros de la aplicación en el log del teléfono, las pantallas de depuración, las pruebas del núcleo, que corren sin radio, y la plantilla de la matriz. El orden recomendado era EXP-02, EXP-01, EXP-03, EXP-04, EXP-06 y EXP-05. EXP-01 era la compuerta: sin un resultado estable en dos teléfonos, el resto de la cadena no se consideraba concluyente.
+
+\section{Hipótesis H1--H5 y trazabilidad experimental}
+
+La Tabla~\ref{tab:hipotesis-h1-h5} resume las hipótesis de la matriz y la evidencia que de verdad se reunió. La Tabla~\ref{tab:trazabilidad-rf-exp} conserva qué experimento cubría cada requisito, tal como se definió en el diseño. Ninguna asigna un aprobado de campaña. Donde el borrador decía \enquote{en curso}, \enquote{parcial}, \enquote{pendiente} o \enquote{por medir}, aquí se dice igual.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Hipótesis H1--H5 y evidencia reunida}
+\label{tab:hipotesis-h1-h5}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash\bfseries}p{1.1cm} >{\raggedright\arraybackslash}p{6.2cm} X @{}}
+\toprule
+ID & Hipótesis & Evidencia disponible \\
+\midrule
+H1 & Grupo propio y estación hacia el padre, a la vez, en un teléfono que ya puede las dos cosas & En dos teléfonos se vio el grupo del hijo activo después de asociarse. El tiempo de unión quedó por medir. \\
+H2 & Dos dueños de grupo enlazados, sin unirse como clientes de Wi-Fi Direct & Parcial, y atada al mismo experimento de dos teléfonos. El enlace y el saludo se vieron de forma intermitente. No hubo un resultado estable. \\
+H3 & Cadena de tres nodos con reenvío & Cubierta en la máquina virtual, sin radio. Falta un tercer teléfono. \\
+H4 & Unión tardía sin cambiar el nombre del grupo & El procedimiento está escrito. No hay medición de laboratorio. \\
+H5 & La reconexión conserva la conversación & Experimento planeado. No hay medición ni una serie de mensajes. \\
+\bottomrule
+\end{tabularx}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} Los tiempos de la matriz son de diseño. Antes de probar tres o más nodos había que comprobar, en el teléfono, que el grupo propio y la estación hacia el padre conviven.
+\end{table}
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Trazabilidad de requisitos funcionales a experimentos}
+\label{tab:trazabilidad-rf-exp}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{@{} l X @{}}
+\toprule
+\textbf{Requisitos} & \textbf{Experimentos previstos} \\
+\midrule
+RF-02, RF-03, RF-04 & EXP-01 \\
+RF-05, RF-06 & EXP-02 y EXP-04 \\
+RF-08, RF-13 & EXP-03 \\
+RF-10, RF-11, RF-12, RF-15 & EXP-05 \\
+RF-14 & EXP-04 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Pruebas unitarias y de componente}
+
+Las pruebas del núcleo se escribieron para correr en la máquina virtual de Java, sin teléfono y sin Wi-Fi, y cubren los mensajes de control, el registro de descubrimiento, la dirección de enlace local, la tabla de rutas, el reenvío y una comprobación mínima de la interfaz pública. No sustituyen los experimentos de laboratorio: comprueban la lógica cuando la estación real se reemplaza por un enlace de prueba, en el lazo local o en memoria. El código actual no conserva tres grupos de pruebas que el borrador de tesis citaba, ni quedó un informe con el número de casos, el tiempo de corrida o un veredicto, de manera que la Tabla~\ref{tab:pruebas-unitarias} describe solo las pruebas que sí están en el módulo y no les pone aprobado ni reprobado.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Cobertura de las pruebas unitarias del módulo núcleo}
+\label{tab:pruebas-unitarias}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{4.6cm} X @{}}
+\toprule
+\textbf{Suite} & \textbf{Cobertura definida en el código} \\
+\midrule
+Ctrl\-Codec\-Test & Ida y vuelta de mensajes de control de saludo, tabla y latido; las líneas desconocidas se ignoran. \\
+Dns\-Sd\-Txt\-Test & Codificación y decodificación del registro de atributos; rechazo si faltan credenciales; nombre de instancia corto y forma empaquetada. \\
+Eui64\-Test & Construcción de la dirección de enlace local a partir del identificador de la estación. Se comprueban el bit universal o local, el formato con guiones y las direcciones mal formadas. \\
+Route\-Table\-Test & Alta de vecino y de padre, combinación de rutas sin bucle hacia el propio nodo, borrado al caer un vecino y retiro de anuncios viejos. \\
+Mesh\-Socket\-Test & El envío usa el siguiente salto, no la dirección de destino. Sin ruta no hay inundación. No se devuelve el mensaje al vecino del que acaba de llegar. Si solo quedaba un salto, se descarta. \\
+Two\-Device\-Lab\-Test & Laboratorio en memoria, sin radio: saludo entre dos nodos, silencio si no hay ruta y reenvío en una cadena de tres en ambos sentidos. \\
+Link\-Layer\-Loop\-back\-Test & La capa de enlace de producción sobre el lazo local: chat de dos nodos, cadena de tres con reenvío, borrado de rutas al caer un vecino y resolución de un enlace mutuo. \\
+Pct\-Core\-Test & Comprobación mínima de la interfaz pública: crear un nodo devuelve un nodo, y los permisos coinciden con los declarados. \\
+\bottomrule
+\end{tabularx}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} Las dos pruebas de laboratorio en memoria ejercitan la lógica de la cadena de tres nodos y, en parte, la de caída de vecino prevista en EXP-05, pero lo hacen sin Wi-Fi Direct, sin descubrimiento de servicios y sin una asociación real. No son un resultado de laboratorio.
+\end{table}
+
+El comando de Gradle documentado para esta batería, desde el módulo de biblioteca, fue \texttt{./gradlew :lib\-pct\-core:test\-Debug\-Unit\-Test} (o la tarea \texttt{:lib\-pct\-core:test}). La guía de la aplicación dejó además un protocolo de dos teléfonos, el banco que esas pruebas no cubren: uno anuncia primero, el otro arranca cuando el anuncio ya existe, y el chat viaja por el puerto 8766, para cruzar el registro de la aplicación con el estado del enlace y no para producir por sí solo los tiempos de la matriz.
+
+\section{EXP-01 --- Interconexión de dos Group Owners}
+
+EXP-01 fue el experimento que condicionaba el resto. Dos teléfonos capaces de mantener el grupo y la estación a la vez, cada uno con su grupo y su anuncio, debían enlazarse como estación, sin unirse como clientes de Wi-Fi Direct, conservar el grupo del hijo y completar el TCP. La matriz pedía, para darlo por logrado, que uno anunciara el servicio de control y el otro el de búsqueda, que el segundo obtuviera el nombre y la clave del primero, que siguiera siendo dueño de su grupo y que circularan el saludo y el compromiso de unión, cuyos tamaños son los del diseño y no una captura. El éxito era que el grupo del hijo siguiera en pie y que el saludo TCP se completara, y el tiempo de unión, por debajo de 15 segundos, se mantuvo como umbral de diseño, no como cifra medida.
+
+En las sesiones el primer teléfono fue un Samsung Galaxy~A24, casi siempre raíz, y el segundo un Vivo~Y21s, casi siempre hijo, y la aplicación se usó en ese orden: arranca el primero, se espera su anuncio y entonces arranca el segundo. El prototipo anterior a la biblioteca ya se había limitado a dos teléfonos, sin tercer salto y sin conexión de control; la biblioteca añadió los puertos 8765 y 8766. La Tabla~\ref{tab:exp01} recoge lo que el borrador de desarrollo dejó observado, y lo que allí estaba en blanco, o marcado como \enquote{por medir}, sigue así.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{EXP-01: criterios de la matriz y observación documentada}
+\label{tab:exp01}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{4.6cm} >{\raggedright\arraybackslash}p{3.2cm} X @{}}
+\toprule
+\textbf{Indicador} & \textbf{Criterio} & \textbf{Observado} \\
+\midrule
+Estación del hijo al nombre del padre & Sí & Sí, de forma intermitente \\
+Grupo del hijo activo tras asociarse & Sí (H1) & Sí \\
+Saludo y el identificador completo del padre & Sí & Sí, tras corregir el formato del mensaje \\
+Compromiso de unión y su acuse & Sí & Parcial \\
+Tiempo de unión (ms) & Menor que 15\,000 (de diseño) & Por medir \\
+Veredicto de campaña & Resultado estable & No declarado; el experimento siguió en curso \\
+\bottomrule
+\end{tabularx}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} No hubo repeticiones, ni media, ni dispersión. Los tamaños de mensaje son los de la especificación, no lecturas de un analizador.
+\end{table}
+
+El análisis de este experimento coincidió en tres hechos, todos cualitativos. El primero fue una carrera en el arranque: si el segundo teléfono buscaba antes de que el primero anunciara, los dos podían declararse raíz y fallaba el enlace entre dos grupos. Se mitigó con una búsqueda inicial de 10 segundos sin grupo propio, y con la regla de no buscar padre mientras el grupo local estuviera encendido. Esa espera es un parámetro de diseño, no un tiempo de unión medido. El segundo fue el choque de direcciones: todo dueño de grupo en Android usa \texttt{192.168.49.1}, así que, en cuanto el hijo levantaba su grupo, la conexión hacia el padre se quedaba en el propio teléfono. Se vio en el Galaxy~A24 y en un M23. La corrección fue enviar esa conexión a la dirección de enlace local del padre, construida a partir de la dirección física que ve la estación, y atarla a la red de la estación. En el registro, ver la misma dirección en los dos extremos delataba el fallo. El tercero fue la intermitencia de la asociación: cuando se ordenaba a mano quién arrancaba primero, la estación y el saludo se repetían, pero el compromiso de unión no se cerró y el tiempo de unión no se midió.
+
+El experimento quedó abierto. Hay evidencia cualitativa de que un teléfono mantiene su grupo mientras se asocia al padre, pero la de los dos grupos enlazados es incompleta, y sin un resultado estable no se dieron por concluidos los de tres nodos.
+
+\section{EXP-02 --- DNS-SD en Group Owner sin membresía de grupo}
+
+EXP-02 buscó confirmar que un teléfono puede anunciar un servicio siendo dueño de su grupo, y que otro puede descubrir ese servicio sin unirse como cliente, y leer un registro con el identificador, el nombre del grupo y el puerto. En dos dispositivos el descubrimiento fue fiable cuando quien busca no tiene grupo propio y quien anuncia sí. Con los dos en grupo, los vecinos de Wi-Fi Direct seguían viéndose, pero el servicio y el registro dejaban de ser fiables. De ahí la regla de apagar el grupo propio antes de buscar padre.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{EXP-02: hallazgo de laboratorio del prototipo sobre DNS-SD}
+\label{tab:exp02-dns}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{6.4cm} X @{}}
+\toprule
+\textbf{Escenario} & \textbf{Observación documentada} \\
+\midrule
+Buscador sin grupo propio; anunciante con grupo & Descubrimiento útil: vecinos, servicio e instancia \\
+Buscador y anunciante con grupo & Vecinos visibles; servicio y registro no fiables \\
+Aviso de servicio frente al aviso del registro & El primero suele llegar; el registro remoto a menudo no \\
+Repetición en el Galaxy~A24 & Lectura de candidatos en el emulador; repetición en el teléfono, pendiente \\
+\bottomrule
+\end{tabularx}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} El prototipo no cifró la frase de paso: viajó en claro dentro del anuncio, aceptable solo en laboratorio.
+\end{table}
+
+Esa diferencia entre \enquote{servicio encontrado} y \enquote{registro remoto} obligó a poner el nombre del grupo y la frase de paso en el nombre del anuncio, y a tratar el registro como canal secundario. El borrador anotó lecturas en pruebas controladas y fallos intermitentes cuando el grupo del segundo teléfono estorbaba, y no apareció una ficha con fecha, dispositivos y un veredicto de aprobado o reprobado. Como el tamaño de diseño de ese registro ---unos 198 bytes en la matriz y un tope teórico de 884 por registro--- no bastaba para fiarle el identificador completo, la identidad se reservó al saludo TCP. En suma, el experimento dejó una restricción clara de operación y una evidencia cualitativa de descubrimiento en dos nodos, no un tiempo medido ni un resultado cerrado de campaña.
+
+\iffalse
+\section{EXP-03 --- Cadena de tres nodos}
+
+La topología prevista fue A (ROOT) $\leftarrow$ B (BRIDGE) $\leftarrow$ C (LEAF): C envía DATA hacia A y B reenvía sin interpretar el payload. El criterio de la matriz era la llegada del payload a A con \texttt{dst\_nid} correcto. Las métricas teóricas ---no medidas--- aparecen en la Tabla~\ref{tab:exp03}.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{EXP-03: métricas teóricas y estado de la evidencia}
+\label{tab:exp03}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{5.2cm} c X @{}}
+\toprule
+\textbf{Métrica o criterio} & \textbf{Objetivo de diseño} & \textbf{Observado} \\
+\midrule
+Payload en A con \texttt{dst\_nid} correcto & Sí & Por medir en radio \\
+$T_{\mathrm{join\_chain}}$ (ms) & $\leq 30\,000$ & Por medir \\
+$T_{\mathrm{data\_e2e}}$ en tres saltos (ms) & $\leq 500$ (laboratorio ideal) & Por medir \\
+Pérdida de DATA & 0\% en 100 mensajes & No se ejecutó la serie \\
+Reenvío lógico en JVM (sin radio) & Cadena A--B--C en las suites de loopback & Cubierto como prueba de componente, no como EXP-03 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La implementación de tablas, \texttt{TAB} y reenvío existió en \texttt{RouteTable}, \texttt{MeshSocket} y \texttt{LinkLayer}, y las suites \texttt{TwoDeviceLabTest} y \texttt{LinkLayerLoopbackTest} ejercitaron una cadena de tres nodos en memoria o en \texttt{127.0.0.1}. Esa evidencia no se trasladó a tres radios. El prototipo v1.0 declaró explícitamente fuera de alcance el tercer dispositivo y el reenvío TCP. El borrador de desarrollo dejó EXP-03 en pendiente por falta de un tercer terminal, con una simulación degradada de roles en dos aparatos que no equivale a la topología A $\leftarrow$ B $\leftarrow$ C. Un documento de capas menciona una cadena ROOT $\rightarrow$ BRIDGE $\rightarrow$ BRIDGE con STA y GO simultáneos; se interpreta aquí como la capacidad L1 de que un hijo conserve GO ---es decir, H1 en más de un salto lógico--- y no como un EXP-03 cerrado con DATA extremo a extremo. No se informa $T_{\mathrm{data\_e2e}}$ ni se anticipa si el umbral de 500~ms se habría cumplido: ese umbral se etiquetó como laboratorio ideal y no hay muestra que lo contradiga ni que lo sostenga.
+
+\section{EXP-04, EXP-05 y EXP-06}
+
+Los tres experimentos restantes quedaron especificados en la matriz y solo parcialmente sostenidos por código. Ninguno aportó una fila empírica con PASS/FAIL ni una métrica numérica.
+
+EXP-04 (unión tardía) exigía A y B operativos durante al menos 60~s ---constante de procedimiento, no un tiempo medido---, el encendido de C en ISLAND con anuncio \texttt{\_pct-seek}, la oferta de unión desde B y la verificación de que los SSID de A y B no cambiaran (RF-14). El borrador de desarrollo lo dejó en \enquote{diseñado}: el procedimiento existía; JOIN\_OFFER en el cable estaba incompleto. No se comprobó en laboratorio que un nodo tardío se uniera sin \texttt{removeGroup} en los ya operativos.
+
+EXP-05 (caída del puente) era el escenario del Incremento~4: topología A $\leftarrow$ B $\leftarrow$ C, apagado de B, tránsito de C a ISLAND, NODE\_DOWN en A (52~B de diseño) y re-JOIN de C hacia A si el radio lo permitía. Las metas teóricas fueron $T_{\mathrm{reconfig}} \leq 15\,000$~ms y un \texttt{session\_epoch} estable (H5). El estado documentado fue \enquote{planificado}: hacía falta un tercer dispositivo y un apagado simulado. La detección de vecino caído y la retirada de rutas se ejercitaron en loopback; no hay serie con mensajería activa durante el apagado de B, ni constancia de que el epoch de una conversación sobreviviera al re-JOIN. $T_{\mathrm{reconfig}}$ quedó por medir.
+
+EXP-06 (ISLAND solo al alcance de un LEAF) debía mostrar que el GO homogéneo en todos los roles acelera la unión: C entra en radio únicamente de L, L detecta \texttt{\_pct-seek} y oferta JOIN sin reiniciar su GO. El prototipo v1.0 no implementó \texttt{\_pct-seek}. El desarrollo posterior dejó el servicio definido y JOIN\_OFFER en curso. La prueba física se declaró pendiente.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Estado de EXP-04, EXP-05 y EXP-06}
+\label{tab:exp04-06}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} l l X @{}}
+\toprule
+\textbf{Exp.} & \textbf{Estado documentado} & \textbf{Métrica prevista} \\
+\midrule
+EXP-04 & Diseñado; JOIN\_OFFER incompleto & Estabilidad de SSID; no medida \\
+EXP-05 & Planificado; requiere tres terminales & $T_{\mathrm{reconfig}}$ y \texttt{session\_epoch}; ambos por medir \\
+EXP-06 & Especificado; prueba física pendiente & JOIN vía LEAF sin reiniciar GO; no medida \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Hallazgos de laboratorio del prototipo y de la plataforma}
+
+Además de la matriz, el prototipo \texttt{proto-exp01-gostat} y las restricciones de plataforma dejaron observaciones que no son tiempos de la campaña, pero sí explican la variabilidad de EXP-01 y EXP-02. Se recogen en la Tabla~\ref{tab:hallazgos-lab}.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Hallazgos de laboratorio y de plataforma, sin métricas de campaña}
+\label{tab:hallazgos-lab}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{4.4cm} X @{}}
+\toprule
+\textbf{Hallazgo} & \textbf{Implicación} \\
+\midrule
+GO del buscador interfiere el DNS-SD & Antes de buscar padres se apagó el GO local. EXP-02 depende de esa regla. \\
+El TXT remoto llega de forma irregular & Las credenciales de STA se pusieron en la instancia DNS-SD; el UUID autoritativo se reservó al HELLO. \\
+Passphrase vacía en \texttt{requestGroupInfo} & Sin PSK no hubo anuncio ni STA. La recuperación documentada fue recrear el grupo. \\
+PC-08: todo GO en \texttt{192.168.49.1} & El TCP IPv4 hijo--padre colapsó al levantar el GO del hijo (observado en A24 y M23). Se adoptó \texttt{fe80::} con ámbito STA y \texttt{bindSocket}. \\
+STA + GO simultáneos en dos teléfonos & El prototipo lo dio por probado en EXP-01 (H1). No probó el tercer dispositivo ni el reenvío TCP. \\
+Diálogo de sistema en la STA legacy & Cada \texttt{requestNetwork} exigió aceptación del usuario en el hijo; el prototipo evitó la tormenta de diálogos con una sola solicitud por acción. \\
+Residuos de grupo al no cerrar la app & Un grupo \enquote{zombi} hacía mentir el arranque siguiente. La guía de la demo exigió tumbar búsqueda, anuncio, STA y grupo al cerrar. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+En los registros \texttt{PctMesh} se identificaron patrones de diagnóstico, no series estadísticas: \texttt{pct=0} con peers P2P visibles se leyó como escaneo prematuro; \texttt{local} igual a \texttt{remote} en \texttt{192.168.49.1}, como autocierre; un UUID con ceros de relleno, como TXT truncado; un EOF tras HELLO, como cierre prematuro del bucle de aceptación. Los mensajes de arista L2 y de \texttt{upstream connect} se usaron como indicios de enlace correcto, sin convertirlos en $T_{\mathrm{join}}$.
+
+No se extrapolaron diferencias de fabricante a tiempos de \texttt{createGroup} o \texttt{removeGroup}: el repositorio no conserva una muestra que los sostenga. Tampoco se rellenó la tabla de caracterización CAP-T01..T06 ni se asignó un \texttt{cap} hexadecimal medido a D1--D4; los valores 0x03 de la especificación de perfiles permanecen como placeholders teóricos. El anteproyecto previó cuatro teléfonos y al menos dos de clase~$\alpha$; las sesiones descritas usaron dos terminales de trabajo (A24 y Y21s), con un M23 citado solo en la medición de PC-08 y en el vector EUI-64.
+
+Las constantes de tráfico de control ---del orden de 17~B/s por nodo en un escenario teórico de tres nodos estables, con PING cada 5~s--- y el tope de usuario de 1222~B por mensaje se dejaron como cuentas de diseño. No hay captura que las confirme ni que las refute.
+
+\section{Contraste con los objetivos específicos}
+
+El objetivo general pedía un protocolo distribuido de control y reconfiguración sobre Wi-Fi estándar, con comunicación estable, prevención de ciclos y adaptación topológica, materializado de forma experimental en Android. Los tres primeros objetivos específicos ---diseñar el protocolo, definir la comunicación lógica e implementar una aplicación demostrativa--- se contrastan con los artefactos de especificación, biblioteca y APK, no con una métrica de esta campaña. El cuarto objetivo específico (OE4) pedía evaluar el comportamiento en laboratorio controlado, midiendo conectividad lógica, tiempo de reconfiguración ante fallos de nodo y continuidad del flujo de información en topología variable. Ese es el contraste que corresponde a este capítulo.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Contraste de los objetivos específicos con la evidencia de este capítulo}
+\label{tab:contraste-oe}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{} >{\bfseries}l >{\raggedright\arraybackslash}p{6.6cm} X @{}}
+\toprule
+OE & Enunciado resumido & Grado frente a la evidencia \\
+\midrule
+OE1 & Diseñar el protocolo (descubrimiento, enlaces, prevención de ciclos) & El diseño y la matriz existen; no es una métrica de laboratorio. \\
+OE2 & Definir la comunicación lógica y la continuidad topológica & El modelo L2/L3 y las tablas se implementaron; la continuidad ante fallos no se midió (H5, EXP-05). \\
+OE3 & Implementar una propuesta en Android con aplicación demostrativa & Hubo prototipo, biblioteca y APK de depuración. Este capítulo no los reevalúa como producto. \\
+OE4 & Evaluar en laboratorio las métricas de conectividad, reconfiguración y continuidad & Medio. Hay evidencia cualitativa de H1 y de DNS-SD en dos nodos; las métricas de la matriz quedaron por medir y EXP-03..06 no se cerraron. \\
+\bottomrule
+\end{tabularx}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} OE4 se declara medio porque la evidencia es parcial, no porque se haya obtenido un índice numérico de cumplimiento.
+\end{table}
+
+OE4 no puede declararse alto. Faltan $T_{\mathrm{join}}$, $T_{\mathrm{join\_chain}}$, $T_{\mathrm{data\_e2e}}$, la serie de 100 mensajes, $T_{\mathrm{reconfig}}$ y la estabilidad de \texttt{session\_epoch}. Tampoco puede declararse nulo: el prototipo y las sesiones de dos terminales mostraron coexistencia GO+STA, descubrimiento DNS-SD condicionado a apagar el GO del buscador, el fallo IPv4 PC-08 y su corrección por enlace local, y un handshake HELLO observable tras corregir el cable. Esa es evidencia de conectividad lógica inicial, que era una de las tres familias de medición pedidas, pero no de las otras dos ---reconfiguración ante fallo y continuidad en topología variable--- ni de un informe empírico consolidado con la plantilla de la matriz. El entregable de \enquote{validación en laboratorio} del anteproyecto quedó, en este punto, incompleto.
+
+\section{Discusión}
+
+Los resultados no permiten afirmar que el protocolo cumpliera, en radio, el conjunto H1--H5. Permiten afirmar algo más estrecho y más honesto. En dispositivos Android 12 de uso cotidiano, sin \emph{root} y sin \texttt{connect()} de Wi-Fi Direct, un nodo pudo mantener un Group Owner propio mientras se asociaba como STA legacy al GO de un padre. Esa es la hipótesis H1, y es el hallazgo de laboratorio más sólido del trabajo. H2 ---dos GO interconectados--- quedó a medio camino: el camino de radio existió, el HELLO llegó después de corregir el cable y el JOIN no se cerró como PASS; además, un arranque desordenado bastaba para que ambos nodos se eligieran ROOT. H3 se demostró como máquina de reenvío en loopback y no como cadena de tres radios. H4 y H5 no salieron del papel de procedimiento.
+
+Esa distribución de evidencia desplaza el cuello de botella. El modelo lógico ---identidad por \texttt{node\_id}, tabla \texttt{nid} $\rightarrow$ siguiente salto, anti-ciclo por TTL y por no rebotar al vecino de llegada--- se comportó de forma coherente en las pruebas de componente, en la línea de lo que los protocolos clásicos resuelven en capa de red \parencite{Perkins2003,Clausen2003}. La dificultad observada no fue ese modelo, sino la coexistencia de interfaces que Android expone en espacio de usuario: un SoftAP P2P y una STA de infraestructura que comparten antena, anuncian en el plano Wi-Fi Direct y colisionan en \texttt{192.168.49.1} cuando ambos extremos son GO \parencite{WiFiAlliance2010,AndroidDevelopers2024}. PCT evitó tocar la pila 802.11 \parencite{IEEE2020} y, con ello, heredó esas restricciones. El precio se pagó en EXP-01, no en la tabla de rutas.
+
+Frente a mallas que operan en capa de red o sobre radios ajenas al teléfono \parencite{Akyildiz2005,MeshtasticProject2023}, el prototipo ganó desplegabilidad en hardware de consumo y perdió, en esta campaña, la medición de reconvergencia que el objetivo general había puesto al mismo nivel que el diseño. Frente a mensajería en capa de aplicación sobre Bluetooth o contactos previos \parencite{BriarProject2021,Biagioni2025}, PCT planteó un árbol Wi-Fi con GO homogéneo; lo que se vio en laboratorio fue el primer eslabón de ese árbol, no su profundidad ni su reparación. La continuidad lógica, entendida como flujo que sobrevive a un cambio topológico \parencite{Karl2005}, permanece como pretensión de diseño: \texttt{session\_epoch} está en la especificación y EXP-05 no la midió.
+
+Las limitaciones que sí se pueden afirmar sin inventar cifras son las siguientes. El PSK viajó en claro por DNS-SD. El \texttt{node\_id} no se persistió entre reinicios en la deuda técnica documentada. No hubo cifrado extremo a extremo, coherente con los no entregables del anteproyecto. El laboratorio efectivo fue de dos teléfonos, no de los cuatro previstos. Las plantillas de EXP-01..06 se dejaron listas para una sesión de mediciones que no quedó registrada en el corpus. En ese marco, hablar de viabilidad técnica de H1 es correcto; hablar de validación experimental completa del protocolo no lo es.
+
+\fi
+% ---------- CONCLUSIONES ----------
+\chapter{Conclusiones y recomendaciones}
+
+\section{Conclusiones}
+\label{ch:conclusiones}
+Las conclusiones responden a los objetivos del protocolo, y no convierten en medición lo que el laboratorio dejó abierto.
+
+El objetivo general pedía un protocolo distribuido de control y reconfiguración sobre Wi-Fi estándar, con comunicación estable, prevención de ciclos y adaptación topológica, materializado en Android. El diseño y la implementación cubren el control distribuido, la prevención de ciclos en la tabla de rutas y una aplicación demostrativa. La adaptación topológica quedó especificada e implementada en el latido y en el borrado de rutas, pero no se midió en una campaña de caída del puente. El objetivo general se cumple en diseño e implementación, y queda parcial en la validación experimental de la reconfiguración.
+
+El primer objetivo específico ---diseñar el protocolo, con descubrimiento, establecimiento de enlaces y prevención de ciclos--- se alcanzó. La especificación fija que todos arrancan como dueños de su grupo, que el enlace hacia el padre es el de una estación, que los nodos se encuentran por el descubrimiento de servicios y que las rutas se combinan con un tope de saltos. Esos documentos existen con independencia de las mediciones que faltan.
+
+El segundo objetivo específico ---definir la estructura de comunicación lógica y la continuidad de la topología--- se alcanzó en el modelo y en el código. La identidad es un identificador de nodo, las direcciones IP no salen de la capa de enlace y el mensaje del usuario viaja por un canal distinto del de control. La continuidad ante un cambio de topología, en cambio, no se observó: la hipótesis correspondiente y el experimento de caída del nodo puente no se cerraron.
+
+El tercer objetivo específico ---implementar una propuesta en Android mediante una aplicación demostrativa--- se alcanzó. La biblioteca de protocolo y la aplicación de depuración y de mensajería se construyeron para Android 12 o superior, sin privilegios de superusuario y sin modificar las capas MAC ni PHY.
+
+El cuarto objetivo específico ---evaluar en laboratorio la conectividad lógica, el tiempo de reconfiguración y la continuidad del flujo--- se alcanzó de forma parcial. Hay evidencia cualitativa, en dos terminales, de que un nodo mantiene su grupo propio mientras se asocia al padre, y de que el descubrimiento y el primer contacto TCP son posibles cuando el arranque se ordena. No hay tiempos de unión, ni de reconfiguración, ni una cadena de tres nodos medida, ni una serie de mensajes con pérdida registrada. Por eso ese objetivo permanece en grado medio.
+
+En conjunto, el trabajo muestra que un protocolo multisalto de capa de aplicación es construible sobre Wi-Fi convencional de consumo. También muestra dónde se detuvo la evidencia: el primer eslabón del árbol, no su profundidad ni su reparación.
+
+% ---------- RECOMENDACIONES ----------
+\section{Recomendaciones}
+\label{ch:recomendaciones}
+Las recomendaciones se limitan a lo que la especificación y el código dejan abierto. No proponen una línea distinta de la que el proyecto ya delimitó.
+
+Conviene cerrar la campaña de laboratorio antes de afirmar resiliencia. Hace falta un tercer terminal para la cadena de tres nodos, y una repetición ordenada del enlace entre dos \emph{Group Owners} hasta obtener un criterio de aceptación estable. En esa misma sesión deben registrarse el tiempo de unión, el tiempo de reconfiguración ante el apagado del puente, la estabilidad de la época de sesión y una serie de mensajes de usuario. Esas cifras no pueden estimarse a partir de las pruebas de componente.
+
+El identificador lógico del nodo debería persistir entre reinicios de la aplicación. Hoy un rearranque puede presentar un interlocutor distinto al resto de la malla y obligar a redescubrir rutas que la topología física no ha cambiado.
+
+La frase de paso del grupo viajó en claro en el anuncio de descubrimiento. Ese uso es aceptable en un laboratorio controlado y no lo es fuera de él. El cifrado extremo a extremo quedó entre los no entregables; si el protocolo se retomara para un escenario real de emergencia, esa protección tendría que diseñarse sin mezclarse con el plano de enrutamiento.
+
+La concurrencia de dos estaciones de infraestructura en el mismo teléfono, el reenvío IP del núcleo y la retirada del descubrimiento del plano físico siguen fuera del perfil implementado. No se recomiendan como parche de la campaña pendiente: la evidencia que falta cabe en el modelo ya construido, con un tercer dispositivo y con el registro que la matriz de validación ya definió.
+
+La unión de dos árboles ya constituidos queda como trabajo futuro. El arranque descrito asocia un nodo que todavía no tiene padre. No se desarrolló un procedimiento para que dos raíces, cada una con su propio árbol, se encuentren después y pasen a formar uno solo.
+
+\iffalse
+\chapter{Anexos}
+\label{ch:anexos}
+\section{Extracto de la especificación wire}
+La trama de control y la de usuario comparten un encabezado binario de 12~bytes, en orden de bytes de mayor a menor. Los cuatro primeros bytes son la magia \texttt{PCT1}. Siguen la versión del protocolo, el tipo de mensaje, banderas, un octeto reservado, la longitud de la carga en 16~bits y otro campo reservado de 16~bits. El tamaño total de la trama es 12 más esa longitud.
+
+El puerto separa los planos. El canal de control, en el puerto \texttt{8765}, transporta el contacto inicial, el compromiso de unión, el anuncio de topología, el latido y su respuesta, el aviso de nodo caído y la apertura del canal de datos. El canal de usuario, en el puerto \texttt{8766}, transporta la carga de aplicación. Un mensaje de control no se envía por el canal de usuario, ni al revés: si la trama llega por el puerto indebido, se descarta. El destino lógico es un identificador de 16~bytes. La dirección IP del vecino que reenvía la trama no forma parte de este sobre y no se publica hacia la capa de red.
+
+\begin{table}[H]
+\centering
+\singlespacing
+\caption{Tipos de mensaje del extracto wire y canal TCP}
+\label{tab:anexo-wire}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Tipo & Nombre & Canal \\
+\midrule
+0x01 & HELLO & Control \texttt{:8765} \\
+0x05 & JOIN\_COMMIT & Control \texttt{:8765} \\
+0x06 & TOPO\_UPDATE & Control \texttt{:8765} \\
+0x07 / 0x08 & PING / PONG & Control \texttt{:8765} \\
+0x09 & NODE\_DOWN & Control \texttt{:8765} \\
+0x0A & DATA & Usuario \texttt{:8766} \\
+\bottomrule
+\end{tabular}
+\par\vspace{0.2cm}
+\small \raggedright \textit{Nota:} El catálogo completo de la especificación incluye, además, la oferta de unión y la gestión explícita del canal de datos. Este extracto recoge el subconjunto que la implementación de laboratorio ejercitó o dejó previsto para la campaña pendiente.
+\end{table}
+
+\fi
+% ---------- GLOSARIO ----------
+\chapter*{Glosario de términos}
+\addcontentsline{toc}{chapter}{Glosario de términos}
+
+\textbf{Continuidad lógica.} Capacidad de mantener el flujo de información cuando cambia la topología, distinguiendo la versión de la red de la de una conversación.
+
+\textbf{Desastre natural.} Encuentro entre un fenómeno natural peligroso y la vulnerabilidad de una comunidad. Delimita el escenario en el que la infraestructura de comunicación puede estar comprometida.
+
+\textbf{DNS-SD.} Descubrimiento de servicios basado en DNS. En este trabajo es la vía por la que un nodo anuncia su presencia para que otro pueda asociarse.
+
+\textbf{Group Owner.} Dispositivo que, en Wi-Fi Direct, emula un punto de acceso y administra su grupo.
+
+\textbf{MANET.} Red móvil ad hoc: los nodos se coordinan sin un punto de acceso fijo.
+
+\textbf{Protocolo distribuido.} Conjunto de reglas con las que varios nodos se coordinan sin un controlador central.
+
+\textbf{Red ad hoc.} Red que se forma entre los propios dispositivos, sin infraestructura previa de encaminamiento.
+
+\textbf{Red multisalto.} Red en la que un mensaje puede atravesar nodos intermedios hasta un destino que no es vecino directo.
+
+\textbf{Resiliencia en comunicaciones.} Capacidad de la red de seguir intercambiando información cuando falla un enlace o un nodo.
+
+\textbf{STA.} Estación que se asocia a un punto de acceso, o al Group Owner de otro nodo, como cliente de infraestructura.
+
+\textbf{Topología de red.} Forma en que los nodos quedan interconectados. En el perfil mínimo de este trabajo es un árbol: un padre por nodo.
+
+\textbf{Wi-Fi Direct.} Especificación de la Wi-Fi Alliance que permite formar un grupo en el que uno de los dispositivos actúa como Group Owner.
+
+% ---------- REFERENCIAS ----------
+% Número solo en la primera página (la que entra en la tabla de contenido).
+\clearpage
+\singlespacing
+\pagestyle{empty}
+\printbibliography[title={Referencias Bibliográficas}, heading=bibintoc]
+
+\end{document}
