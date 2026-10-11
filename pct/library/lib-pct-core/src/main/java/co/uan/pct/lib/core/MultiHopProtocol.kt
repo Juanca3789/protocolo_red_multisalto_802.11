@@ -85,7 +85,6 @@ class MultiHopProtocol(
                 parentMacState = _parentMac,
                 staNetworkState = _staNetwork,
             )
-            neighborTableModel.addEntry(nodeId, hops = 0)
             controlLink = ControlLink(
                 context = multiHopContext,
                 localNodeId = nodeId,

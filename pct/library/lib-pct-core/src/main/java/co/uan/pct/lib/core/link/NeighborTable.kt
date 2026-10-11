@@ -17,9 +17,8 @@ class NeighborTable {
     private val _entries = MutableStateFlow<List<Pair<NodeId, Int>>>(emptyList())
     val entries: StateFlow<List<Pair<NodeId, Int>>> = _entries.asStateFlow()
 
-    /** @param hops 0 = loopback (este nodo); ≥ 1 = vecino o destino remoto. */
     fun addEntry(nodeId: NodeId, hops: Int) {
-        require(hops >= 0) { "hops must be >= 0" }
+        require(hops >= 1) { "hops must be >= 1" }
         byDestUuid[nodeId.identifier] = Entry(nodeId, hops)
         emitEntries()
     }

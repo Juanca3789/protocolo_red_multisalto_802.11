@@ -147,7 +147,6 @@ class ControlLink(
             val gateway = StaParentNetwork.gatewayForControlTcp(connectivity, staNetwork)
             val localIp = StaParentNetwork.hostIpv4ForAnnounce(connectivity, staNetwork)
             if (gateway == null || localIp == null) {
-                PctLog.event("l2: upstream espera gw/ip gw=$gateway ip=$localIp")
                 delay(RETRY_DELAY)
                 continue
             }

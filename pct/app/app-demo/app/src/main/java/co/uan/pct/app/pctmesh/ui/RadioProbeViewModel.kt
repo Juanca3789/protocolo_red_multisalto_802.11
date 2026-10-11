@@ -40,15 +40,13 @@ class RadioProbeViewModel(
             role = role,
             parentMac = parentMac,
             childMacs = childMacs,
-            neighborRows = neighborTable
-                .sortedWith(compareBy({ it.second }, { it.first.name.lowercase() }))
-                .map { (nodeId, hops) ->
-                    NeighborRowUi(
-                        shortId = nodeId.identifier.toString().take(8),
-                        name = nodeId.name,
-                        hops = hops,
-                    )
-                },
+            neighborRows = neighborTable.map { (nodeId, hops) ->
+                NeighborRowUi(
+                    shortId = nodeId.identifier.toString().take(8),
+                    name = nodeId.name,
+                    hops = hops,
+                )
+            },
         )
     }.stateIn(
         scope = viewModelScope,
