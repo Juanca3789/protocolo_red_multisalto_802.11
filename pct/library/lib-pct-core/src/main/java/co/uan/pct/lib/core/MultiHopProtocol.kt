@@ -6,15 +6,16 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import android.net.Network
-import co.uan.pct.lib.core.link.ControlLink
-import co.uan.pct.lib.core.link.NeighborTable
+import co.uan.pct.lib.core.data.Data
+import co.uan.pct.lib.core.link.Link
+import co.uan.pct.lib.core.link.table.NeighborEntry
 import co.uan.pct.lib.core.logging.PctLog
+import co.uan.pct.lib.core.radio.GoControlEndpoint
 import co.uan.pct.lib.core.radio.Radio
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +26,6 @@ class MultiHopProtocol(
 ) {
     private lateinit var multiHopContext: Context
     private var attachedId: NodeId? = null
-    private val incoming = Channel<Pair<NodeId, ByteArray>>(capacity = Channel.UNLIMITED)
 
     private val _state = MutableStateFlow(Role.ISLAND)
     val state: StateFlow<Role> = _state.asStateFlow()
@@ -37,9 +37,13 @@ class MultiHopProtocol(
     val parentMac: StateFlow<String?> = _parentMac.asStateFlow()
 
     private val _staNetwork = MutableStateFlow<Network?>(null)
+    private val _parentBssid = MutableStateFlow<String?>(null)
+    private val _goEndpoint = MutableStateFlow<GoControlEndpoint?>(null)
 
-    private val neighborTableModel = NeighborTable()
-    val neighborTable: StateFlow<List<Pair<NodeId, Int>>> = neighborTableModel.entries
+    private lateinit var link: Link
+    private lateinit var data: Data
+    val neighborTable: StateFlow<List<NeighborEntry>>
+        get() = link.neighbors
 
     var loggingLevel: Int = Log.VERBOSE
         set(value) {
@@ -51,14 +55,29 @@ class MultiHopProtocol(
         }
 
     private lateinit var radio: Radio
-    private lateinit var controlLink: ControlLink
     private var running = false
 
     fun attach(context: Context): MultiHopProtocol {
         val displayLabel = "${name.trim()}_${Build.MODEL.trim()}".replace(' ', '_')
         multiHopContext = context.applicationContext
         attachedId = NodeId(Uuid.random(), displayLabel)
-        neighborTableModel.bindLocalNode(attachedId!!)
+        link = Link(
+            context = multiHopContext,
+            localNodeId = attachedId!!,
+            roleFlow = _state.asStateFlow(),
+            goEndpointFlow = _goEndpoint.asStateFlow(),
+            staNetworkFlow = _staNetwork.asStateFlow(),
+            parentBssidFlow = _parentBssid.asStateFlow(),
+        )
+        data = Data(
+            context = multiHopContext,
+            localNodeId = attachedId!!,
+            roleFlow = _state.asStateFlow(),
+            goEndpointFlow = _goEndpoint.asStateFlow(),
+            staNetworkFlow = _staNetwork.asStateFlow(),
+            parentBssidFlow = _parentBssid.asStateFlow(),
+            neighborsFlow = link.neighbors,
+        )
         log(Log.DEBUG, "attach node=${attachedId!!.name}")
         return this
     }
@@ -85,22 +104,21 @@ class MultiHopProtocol(
                 connectedMacsState = _connectedMacs,
                 parentMacState = _parentMac,
                 staNetworkState = _staNetwork,
+                parentBssidState = _parentBssid,
+                goEndpointState = _goEndpoint,
             )
-            controlLink = ControlLink(
-                context = multiHopContext,
-                localNodeId = nodeId,
-                roleFlow = _state,
-                staNetworkFlow = _staNetwork.asStateFlow(),
-                neighborTable = neighborTableModel,
-            )
-            controlLink.start()
             radio.start()
+            link.start()
+            data.start()
             running = true
             log(Log.DEBUG, "start ok")
         } catch (t: Throwable) {
             log(Log.ERROR, "start failed: ${t.message}")
-            if (::controlLink.isInitialized) {
-                runCatching { controlLink.stop() }
+            if (::data.isInitialized) {
+                runCatching { data.stop() }
+            }
+            if (::link.isInitialized) {
+                runCatching { link.stop() }
             }
             if (::radio.isInitialized) {
                 runCatching { radio.stop() }
@@ -118,8 +136,11 @@ class MultiHopProtocol(
         }
         try {
             log(Log.DEBUG, "stop")
-            if (::controlLink.isInitialized) {
-                controlLink.stop()
+            if (::data.isInitialized) {
+                data.stop()
+            }
+            if (::link.isInitialized) {
+                link.stop()
             }
             radio.stop()
         } catch (t: Throwable) {
@@ -131,9 +152,16 @@ class MultiHopProtocol(
         }
     }
 
-    suspend fun pop(): Pair<NodeId, ByteArray> = incoming.receive()
+    /** `(origen, payload)` de la cola FIFO de la capa data. */
+    suspend fun pop(): Pair<NodeId, ByteArray> {
+        check(::data.isInitialized) { "attach(context) first" }
+        return data.pop()
+    }
 
+    /** Broadcast v1: [destination] se ignora; el mensaje se repite por todo el árbol. */
     suspend fun send(destination: NodeId, payload: ByteArray) {
+        check(::data.isInitialized) { "attach(context) first" }
+        data.send(payload)
     }
 
     private fun resetSessionState() {
@@ -141,7 +169,8 @@ class MultiHopProtocol(
         _connectedMacs.value = emptyList()
         _parentMac.value = null
         _staNetwork.value = null
-        neighborTableModel.clear()
+        _parentBssid.value = null
+        _goEndpoint.value = null
     }
 
     private fun log(priority: Int, message: String) {

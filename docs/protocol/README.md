@@ -19,6 +19,7 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 | L3: reenvío usuario (solo nids) | [15-network-layer.md](15-network-layer.md) |
 | Envoltorio control / user | [16-packet-envelope.md](16-packet-envelope.md) |
 | Roadmap prototipo → implementación | [17-implementation-roadmap.md](17-implementation-roadmap.md) |
+| Bugs link en Android (LK-xx) | [link-android-known-issues.md](link-android-known-issues.md) |
 | Estado lib-pct-core | [../prototype/lib-pct-core/README.md](../prototype/lib-pct-core/README.md) |
 
 ---

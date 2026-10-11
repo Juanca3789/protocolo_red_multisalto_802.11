@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import co.uan.pct.app.pctmesh.ui.RadioProbeScreen
+import co.uan.pct.app.pctmesh.ui.MeshLayerTabsScreen
 import co.uan.pct.app.pctmesh.ui.RadioProbeViewModel
 import co.uan.pct.lib.core.MultiHopProtocol
 import com.uan.designsystem.uikit.components.UanAppBar
@@ -46,8 +46,8 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .padding(innerPadding),
                     ) {
-                        UanAppBar(title = "PCT Radio")
-                        RadioProbeScreen(
+                        UanAppBar(title = "PCT Mesh")
+                        MeshLayerTabsScreen(
                             viewModel = viewModel,
                             onStartClick = ::onStartClick,
                             modifier = Modifier.fillMaxSize(),

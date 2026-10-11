@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiNetworkSpecifier
 import android.util.Log
 import androidx.annotation.RequiresPermission
@@ -26,6 +27,7 @@ class StaAssociation(
     context: Context,
     parentMacState: MutableStateFlow<String?>,
     private val staNetworkState: MutableStateFlow<Network?>,
+    private val parentBssidState: MutableStateFlow<String?>,
     private val log: (priority: Int, message: String) -> Unit = Companion::emitLog,
 ) {
     private val connectivity =
@@ -56,10 +58,31 @@ class StaAssociation(
                 .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .setNetworkSpecifier(spec)
                 .build()
-            val callback = object : ConnectivityManager.NetworkCallback() {
+            // FLAG_INCLUDE_LOCATION_INFO: sin él WifiInfo.bssid llega redactado (02:00:00:00:00:00)
+            // y Link no puede derivar la fe80 del padre (LK-05).
+            val callback = object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
                 override fun onAvailable(network: Network) {
                     networkCallback = this
                     if (cont.isActive) cont.resume(network)
+                }
+
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                    val bssid = (caps.transportInfo as? WifiInfo)?.bssid
+                        ?.takeIf { it.isNotBlank() && it != REDACTED_BSSID }
+                    if (bssid != null && parentBssidState.value != bssid) {
+                        parentBssidState.value = bssid
+                        log(Log.DEBUG, "sta: bssid=$bssid network=$network")
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    if (staNetworkState.value == network) {
+                        log(Log.DEBUG, "sta: network lost network=$network")
+                        networkCallback = null
+                        parentMacOut.value = null
+                        parentBssidState.value = null
+                        staNetworkState.value = null
+                    }
                 }
 
                 override fun onUnavailable() {
@@ -86,12 +109,14 @@ class StaAssociation(
         }
         networkCallback = null
         parentMacOut.value = null
+        parentBssidState.value = null
         staNetworkState.value = null
         log(Log.DEBUG, "sta: disconnected")
     }
 
     companion object {
         private const val LOG_TAG = "StaAssociation"
+        private const val REDACTED_BSSID = "02:00:00:00:00:00"
 
         /**
          * Simple TOPSIS (min criteria): child_count, role rank, optional RSSI cost (-dBm).

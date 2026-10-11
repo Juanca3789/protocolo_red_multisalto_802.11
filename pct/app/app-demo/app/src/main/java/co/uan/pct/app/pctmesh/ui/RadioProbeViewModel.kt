@@ -5,16 +5,24 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.uan.pct.app.pctmesh.PctMeshApplication
 import co.uan.pct.lib.core.MultiHopProtocol
+import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 data class NeighborRowUi(
     val shortId: String,
     val name: String,
+    val ipv4OnLink: String,
     val hops: Int,
 )
 
@@ -25,10 +33,22 @@ data class RadioProbeUiState(
     val neighborRows: List<NeighborRowUi> = emptyList(),
 )
 
+data class BroadcastMessageUi(
+    val id: Long,
+    val senderName: String,
+    val body: String,
+)
+
 @OptIn(ExperimentalUuidApi::class)
 class RadioProbeViewModel(
     private val protocol: MultiHopProtocol,
 ) : ViewModel() {
+
+    private val displayNameCache = mutableMapOf<Uuid, String>()
+    private val _broadcastMessages = MutableStateFlow<List<BroadcastMessageUi>>(emptyList())
+    val broadcastMessages: StateFlow<List<BroadcastMessageUi>> = _broadcastMessages.asStateFlow()
+    private val nextMessageId = AtomicLong(1)
+    private var popJob: Job? = null
 
     val uiState: StateFlow<RadioProbeUiState> = combine(
         protocol.state,
@@ -36,15 +56,19 @@ class RadioProbeViewModel(
         protocol.connectedMacs,
         protocol.neighborTable,
     ) { role, parentMac, childMacs, neighborTable ->
+        neighborTable.forEach { entry ->
+            displayNameCache[entry.nodeId.identifier] = entry.nodeId.name
+        }
         RadioProbeUiState(
             role = role,
             parentMac = parentMac,
             childMacs = childMacs,
-            neighborRows = neighborTable.map { (nodeId, hops) ->
+            neighborRows = neighborTable.map { entry ->
                 NeighborRowUi(
-                    shortId = nodeId.identifier.toString().take(8),
-                    name = nodeId.name,
-                    hops = hops,
+                    shortId = entry.nodeId.identifier.toString().take(8),
+                    name = entry.nodeId.name,
+                    ipv4OnLink = entry.ipv4OnLink,
+                    hops = entry.hops,
                 )
             },
         )
@@ -54,12 +78,60 @@ class RadioProbeViewModel(
         initialValue = RadioProbeUiState(),
     )
 
+    init {
+        runCatching {
+            displayNameCache[protocol.nodeId.identifier] = protocol.nodeId.name
+        }
+    }
+
     fun start() {
         protocol.start()
+        startPopLoop()
     }
 
     fun stop() {
+        popJob?.cancel()
+        popJob = null
         protocol.stop()
+        _broadcastMessages.value = emptyList()
+        displayNameCache.clear()
+        runCatching {
+            displayNameCache[protocol.nodeId.identifier] = protocol.nodeId.name
+        }
+    }
+
+    fun sendBroadcast(text: String) {
+        val body = text.trim()
+        if (body.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                protocol.send(protocol.nodeId, body.toByteArray(Charsets.UTF_8))
+            }
+        }
+    }
+
+    private fun startPopLoop() {
+        popJob?.cancel()
+        popJob = viewModelScope.launch {
+            while (true) {
+                val (origin, payload) = runCatching { protocol.pop() }.getOrNull() ?: break
+                val body = runCatching { payload.decodeToString() }.getOrNull() ?: continue
+                _broadcastMessages.value = _broadcastMessages.value + BroadcastMessageUi(
+                    id = nextMessageId.getAndIncrement(),
+                    senderName = resolveDisplayName(origin),
+                    body = body,
+                )
+            }
+        }
+    }
+
+    private fun resolveDisplayName(origin: NodeId): String {
+        displayNameCache[origin.identifier]?.let { return it }
+        if (runCatching { protocol.nodeId.identifier }.getOrNull() == origin.identifier) {
+            return protocol.nodeId.name
+        }
+        displayNameCache[origin.identifier] = origin.name
+        return origin.name
     }
 
     class Factory(

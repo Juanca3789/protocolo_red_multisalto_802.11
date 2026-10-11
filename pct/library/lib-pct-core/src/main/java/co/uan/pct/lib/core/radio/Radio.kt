@@ -3,7 +3,10 @@ package co.uan.pct.lib.core.radio
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.Manifest.permission.NEARBY_WIFI_DEVICES
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.Network
+import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pManager
 import androidx.annotation.RequiresPermission
 import co.uan.pct.lib.core.logging.PctLog
@@ -15,6 +18,9 @@ import co.uan.pct.lib.core.radio.group.GroupOwner
 import co.uan.pct.lib.core.radio.sta.StaAssociation
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
+import java.net.Inet4Address
+import java.net.Inet6Address
+import java.net.NetworkInterface
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
@@ -35,11 +41,15 @@ class Radio(
     context: Context,
     private val nodeId: NodeId,
     private val roleState: MutableStateFlow<Role>,
-    private val     connectedMacsState: MutableStateFlow<List<String>>,
+    private val connectedMacsState: MutableStateFlow<List<String>>,
     parentMacState: MutableStateFlow<String?>,
     staNetworkState: MutableStateFlow<Network?>,
+    parentBssidState: MutableStateFlow<String?>,
+    private val goEndpointState: MutableStateFlow<GoControlEndpoint?>,
 ) {
     private val appContext = context.applicationContext
+    private val connectivity =
+        appContext.getSystemService(ConnectivityManager::class.java)
 
     private val wifiP2pManager: WifiP2pManager =
         appContext.getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
@@ -51,6 +61,7 @@ class Radio(
         appContext,
         parentMacState,
         staNetworkState,
+        parentBssidState,
         PctLog.logger("StaAssociation"),
     )
 
@@ -62,6 +73,7 @@ class Radio(
 
     private var goCredentials: GoCredentials? = null
     private var lastChildCount = 0
+    private var lastPendingReason: String? = null
 
     @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES])
     fun start() {
@@ -100,6 +112,7 @@ class Radio(
         connectedMacsState.value = emptyList()
         lastChildCount = 0
         goCredentials = null
+        goEndpointState.value = null
 
         dnsSd.browse(BROWSE_WINDOW)
 
@@ -135,7 +148,9 @@ class Radio(
     private suspend fun monitorGoClients() {
         while (currentCoroutineContext().isActive && active) {
             refreshGoClients()
-            delay(GO_OBSERVE_INTERVAL_MS.milliseconds)
+            // LK-07: mientras la interfaz P2P no tenga IPv4 sondeamos rápido para abrir el listen cuanto antes.
+            val interval = if (goEndpointState.value == null) GO_PENDING_INTERVAL_MS else GO_OBSERVE_INTERVAL_MS
+            delay(interval.milliseconds)
         }
     }
 
@@ -146,6 +161,7 @@ class Radio(
         sta.disconnect()
         roleState.value = Role.ISLAND
         connectedMacsState.value = emptyList()
+        goEndpointState.value = null
         goCredentials = null
         lastChildCount = 0
         PctLog.event("session: fin")
@@ -167,8 +183,12 @@ class Radio(
 
     @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES])
     private suspend fun refreshGoClients() {
-        val group = p2pChannel.readGroupInfo() ?: return
-        if (!group.isGroupOwner) return
+        val group = p2pChannel.readGroupInfo()
+        if (group == null || !group.isGroupOwner) {
+            goEndpointState.value = null
+            return
+        }
+        publishGoEndpoint(group)
 
         val macs = group.clientList.orEmpty()
             .mapNotNull { device -> device.deviceAddress.takeIf { it.isNotBlank() } }
@@ -181,8 +201,75 @@ class Radio(
         }
     }
 
+    /**
+     * Misma lectura que hijos GO: [WifiP2pGroup.getInterface] → [Network] de ConnectivityManager.
+     * LK-01: solo se publica un endpoint cuando la interfaz ya tiene IPv4; si no, `null`.
+     */
+    private fun publishGoEndpoint(group: WifiP2pGroup) {
+        val iface = group.`interface`?.trim().orEmpty()
+        val endpoint = if (iface.isEmpty()) null else resolveGoEndpoint(iface)
+        if (goEndpointState.value != endpoint) {
+            goEndpointState.value = endpoint
+            if (endpoint != null) {
+                PctLog.event(
+                    "go: endpoint iface=$iface ipv4=${endpoint.hostIpv4} " +
+                        "fe80=${endpoint.linkLocalIpv6?.hostAddress} network=${endpoint.network}",
+                )
+            }
+        }
+    }
+
+    /**
+     * Fuente principal: la interfaz del kernel ([NetworkInterface]). Hay OEM donde
+     * ConnectivityManager no expone la interfaz P2P en `allNetworks` (LK-08), así que el
+     * [Network] se adjunta solo si existe.
+     */
+    private fun resolveGoEndpoint(iface: String): GoControlEndpoint? {
+        val nif = runCatching { NetworkInterface.getByName(iface) }.getOrNull()
+        if (nif == null) {
+            logEndpointPending("iface=$iface sin NetworkInterface")
+            return null
+        }
+        var ipv4: String? = null
+        var fe80: Inet6Address? = null
+        var count = 0
+        for (addr in nif.inetAddresses) {
+            count++
+            if (ipv4 == null && addr is Inet4Address && !addr.isLoopbackAddress) ipv4 = addr.hostAddress
+            if (fe80 == null && addr is Inet6Address && addr.isLinkLocalAddress) fe80 = addr
+        }
+        if (ipv4 == null) {
+            logEndpointPending("iface=$iface sin ipv4 addrs=$count")
+            return null
+        }
+        // Ámbito de interfaz garantizado para poder hacer bind sobre la fe80.
+        val scoped = fe80?.let { addr ->
+            runCatching { Inet6Address.getByAddress(null, addr.address, nif) }.getOrNull()
+        }
+        lastPendingReason = null
+        return GoControlEndpoint(networkForInterface(iface), iface, ipv4, scoped)
+    }
+
+    private fun networkForInterface(iface: String): Network? {
+        @Suppress("DEPRECATION")
+        for (candidate in connectivity.allNetworks) {
+            val lp: LinkProperties = connectivity.getLinkProperties(candidate) ?: continue
+            if (lp.interfaceName == iface) return candidate
+        }
+        return null
+    }
+
+    /** Una línea por motivo, no una por tick. */
+    private fun logEndpointPending(reason: String) {
+        if (lastPendingReason != reason) {
+            lastPendingReason = reason
+            PctLog.event("go: endpoint pendiente $reason")
+        }
+    }
+
     private companion object {
         private val BROWSE_WINDOW = 15.seconds
         private const val GO_OBSERVE_INTERVAL_MS = 3_000L
+        private const val GO_PENDING_INTERVAL_MS = 1_000L
     }
 }
