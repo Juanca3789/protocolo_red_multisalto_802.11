@@ -1,6 +1,5 @@
 package co.uan.pct.lib.core.link
 
-import android.net.ConnectivityManager
 import co.uan.pct.lib.core.logging.PctLog
 import co.uan.pct.lib.core.types.NodeId
 import java.io.OutputStream
@@ -26,14 +25,13 @@ class ControlSession(
     private val scope: CoroutineScope,
     private val localNodeId: NodeId,
     private val neighborTable: NeighborTable,
-    private val connectivity: ConnectivityManager,
     private val mode: Mode,
     private val onClosed: (() -> Unit)? = null,
 ) {
     enum class Mode {
         /** Hijo → padre por STA. */
         UPSTREAM,
-        /** Padre acepta en GO. */
+        /** Padre acepta en GO Wi‑Fi Direct (grupo P2P). */
         GO_INBOUND,
     }
 
@@ -148,7 +146,7 @@ class ControlSession(
                     pendingPong.get()?.complete(frame.seq)
                 }
                 is ControlCodec.Frame.Announce -> if (mode == Mode.GO_INBOUND) {
-                    handleAnnounceOnGo(frame.payload)
+                    handleAnnounceOnGo(frame.payload, socket)
                 }
                 is ControlCodec.Frame.AnnounceOk -> {
                     pendingAnnounceOk.get()?.complete(frame.payload)
@@ -162,20 +160,27 @@ class ControlSession(
         }
     }
 
-    private suspend fun handleAnnounceOnGo(payload: ControlCodec.NodePayload) {
+    private suspend fun handleAnnounceOnGo(payload: ControlCodec.NodePayload, peer: Socket) {
         if (payload.nodeId.identifier == localNodeId.identifier) return
         neighborTable.addEntry(payload.nodeId, hops = 1)
         PctLog.event(
             "l2: announce child=${payload.nodeId.name} " +
                 "id=${payload.nodeId.identifier} ip=${payload.ipv4OnLink} hops=1",
         )
-        val goIp = GoSoftAp.hostIpv4ForAnnounceOk(connectivity)
-        if (goIp == null) {
-            PctLog.event("l2: announce_ok omitido (sin ipv4 go)")
+        val ourIpOnThisGoLink = ipv4Host(peer.localAddress?.hostAddress)
+        if (ourIpOnThisGoLink == null) {
+            PctLog.event("l2: announce_ok omitido (sin localAddress en socket p2p-go)")
             return
         }
-        enqueue(ControlCodec.encodeAnnounceOk(localNodeId, goIp))
-        PctLog.event("l2: announce_ok go ip=$goIp")
+        enqueue(ControlCodec.encodeAnnounceOk(localNodeId, ourIpOnThisGoLink))
+        PctLog.event(
+            "l2: announce_ok peer=${peer.inetAddress?.hostAddress} local=$ourIpOnThisGoLink",
+        )
+    }
+
+    private fun ipv4Host(host: String?): String? {
+        if (host.isNullOrBlank() || host == "0.0.0.0") return null
+        return host
     }
 
     private fun socketAlive(): Boolean =

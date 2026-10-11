@@ -58,6 +58,7 @@ class MultiHopProtocol(
         val displayLabel = "${name.trim()}_${Build.MODEL.trim()}".replace(' ', '_')
         multiHopContext = context.applicationContext
         attachedId = NodeId(Uuid.random(), displayLabel)
+        neighborTableModel.bindLocalNode(attachedId!!)
         log(Log.DEBUG, "attach node=${attachedId!!.name}")
         return this
     }

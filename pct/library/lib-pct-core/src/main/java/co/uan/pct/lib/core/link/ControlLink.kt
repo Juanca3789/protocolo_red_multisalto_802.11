@@ -23,7 +23,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * - **Entrante:** [ServerSocket] en el SoftAP/GO (sin [Network.bindSocket] a la STA).
+ * - **Entrante:** [ServerSocket] en el rol **GO Wi‑Fi Direct** (no hotspot SoftAP del SO; sin bind a la STA).
  * - **Saliente:** STA → PING/PONG → ANNOUNCE/ANNOUNCE_OK por [ControlSession].
  */
 @OptIn(ExperimentalUuidApi::class)
@@ -58,9 +58,9 @@ class ControlLink(
         goListenWatcherJob = scope.launch {
             roleFlow.collect { role ->
                 if (role.hasGo()) {
-                    ensureListeningOnGoSoftAp()
+                    ensureListeningOnP2pGo()
                 } else {
-                    stopListeningOnGoSoftAp()
+                    stopListeningOnP2pGo()
                     closeAllGoSessions()
                 }
             }
@@ -87,13 +87,14 @@ class ControlLink(
         upstreamSession?.closeQuietly()
         upstreamSession = null
         closeAllGoSessions()
-        stopListeningOnGoSoftAp()
+        stopListeningOnP2pGo()
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         neighborTable.clear()
     }
 
-    private fun ensureListeningOnGoSoftAp() {
+    /** Puerto de control en el grupo P2P donde somos GO (`createGroup`). */
+    private fun ensureListeningOnP2pGo() {
         if (goListenSocket != null) return
         runCatching {
             ServerSocket(CONTROL_PORT).apply { reuseAddress = true }
@@ -106,7 +107,7 @@ class ControlLink(
         }
     }
 
-    private fun stopListeningOnGoSoftAp() {
+    private fun stopListeningOnP2pGo() {
         goAcceptJob?.cancel()
         goAcceptJob = null
         runCatching { goListenSocket?.close() }
@@ -127,7 +128,6 @@ class ControlLink(
             scope = scope,
             localNodeId = localNodeId,
             neighborTable = neighborTable,
-            connectivity = connectivity,
             mode = ControlSession.Mode.GO_INBOUND,
             onClosed = { sessionRef?.let { goSessions.remove(it) } },
         )
@@ -165,7 +165,6 @@ class ControlLink(
                 scope = scope,
                 localNodeId = localNodeId,
                 neighborTable = neighborTable,
-                connectivity = connectivity,
                 mode = ControlSession.Mode.UPSTREAM,
             )
             upstreamSession = session
