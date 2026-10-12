@@ -1,161 +1,103 @@
-# 16 — Envoltorio de paquetes (control vs usuario)
+# 16 — Envoltorio en el cable (control vs datos)
 
-**Versión:** 0.2.1-draft  
-**Prerequisito:** [06-tcp-messages.md](06-tcp-messages.md), [14-link-layer.md](14-link-layer.md), [15-network-layer.md](15-network-layer.md)
+**Versión:** 0.3.0 (lib-pct-core 2.3.0)  
+**Prerequisito:** [14-link-layer.md](14-link-layer.md), [15-network-layer.md](15-network-layer.md).
 
----
-
-## 1. Propósito
-
-Definir el **sobre lógico** para tráfico multisalto y **en qué canal TCP** viaja cada tipo:
-
-| `type` | Canal TCP | Puerto |
-|---|---|---|
-| `control` | Control | `8765` |
-| `user` | Datos | `8766` |
-
-**No compartir socket:** mezclar control periódico y ráfagas usuario en un solo TCP satura el enlace en Android y puede bloquear PING/TOPO; el canal control debe poder **reabrir** el de datos sin reiniciar el nodo ([14-link-layer.md](14-link-layer.md) §2.1).
+El framing `PCT1` de 12 bytes y el DATA unicast con `dst_nid` de [06-tcp-messages.md](06-tcp-messages.md) **no se envían**. Este documento es el wire real.
 
 ---
 
-## 2. Modelo lógico (JSON — diseño)
+## 1. Dos canales, dos magics
 
-Vista humana y contrato entre capas internas:
+| Canal | Puerto | Magic | Capa |
+|---|---|---|---|
+| Control | 8765 | 4 ASCII distintos por tipo (`PCTG` `PCTP` `PCTA` `PCTO`) | L2 |
+| Datos | 8766 | `PCTD` (4 B) + `msg_type` (1 B, byte 5) | L3 |
 
-```json
-{
-  "type": "control",
-  "destination": "22222222222222222222222222222222",
-  "content": "<string o objeto serializado>"
-}
-```
+No compartir socket. Desde el byte 5 del canal datos ya se sabe qué cuerpo leer; no hay versión ni `dest_uuid`.
 
-| Campo | Valores | Descripción |
-|---|---|---|
-| `type` | `control` \| `user` | Plano del payload **y** selector de canal |
-| `destination` | UUID 32 hex | Destino lógico final |
-| `content` | string / blob | Cuerpo opaco para el receptor final |
-
-### 2.1 Regla de canal (normativa)
-
-| `type` | Socket permitido | Prohibido |
-|---|---|---|
-| `control` | `ctrl_socket` `:8765` | Enviar por `:8766` |
-| `user` | `data_socket` `:8766` | Enviar por `:8765` |
-
-Violación → descartar frame + log; en lab, contador debug `channel_mismatch`.
-
-### 2.2 Extensiones de tránsito (L3, solo `type=user`)
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `hop_limit` | uint8 | TTL lógico (default 7) |
-| `path_trace` | UUID[] | Nodos ya visitados (anti-ciclo) |
-| `source` | UUID | Origen lógico |
+Un frame de datos en `:8765` o un magic de control en `:8766` → el lector corta la sesión.
 
 ---
 
-## 3. Mapeo a wire format binario
+## 2. Control `:8765`
 
-Framing `PCT1` ([06-tcp-messages.md](06-tcp-messages.md)) en **ambos** canales; el **puerto** disambigua el subconjunto permitido.
+Sin header común. El magic de 4 bytes **es** el tipo.
 
-### 3.1 Canal control (`:8765`) — `type=control`
-
-| `msg_type` | Nombre |
-|---|---|
-| 0x01 | HELLO |
-| 0x05 | JOIN_COMMIT |
-| 0x06 | TOPO_UPDATE |
-| 0x07 / 0x08 | PING / PONG |
-| 0x09 | NODE_DOWN |
-| 0x0D | DATA_CHANNEL_OPEN |
-| 0x0E | DATA_CHANNEL_ACK |
-| 0x0F | DATA_CHANNEL_RESET |
-
-### 3.2 Canal datos (`:8766`) — `type=user`
-
-| `msg_type` | Nombre |
-|---|---|
-| 0x0A | DATA |
-
-Payload DATA (§3.3) es el envelope user completo.
-
-### 3.3 DATA (0x0A) — payload usuario
+### PING (`PCTG`) / PONG (`PCTP`) — 8 bytes
 
 | Offset | Tamaño | Campo |
 |---|---|---|
-| 0 | 16 | `src_nid` |
-| 16 | 16 | `dst_nid` |
-| 32 | 1 | `hop_limit` |
-| 33 | 1 | `path_len` |
-| 34 | 16×path_len | `path_trace[]` |
-| … | variable | `content_bytes` |
+| 0 | 4 | magic |
+| 4 | 4 | `seq` int32 BE |
+
+### ANNOUNCE (`PCTA`) / ANNOUNCE_OK (`PCTO`)
+
+| Offset | Tamaño | Campo |
+|---|---|---|
+| 0 | 4 | magic |
+| 4 | 16 | `node_uuid` |
+| 20 | 2 | `name_len` uint16 BE (1..512) |
+| 22 | n | `name` UTF-8 |
+| 22+n | 4 | IPv4 de esta arista |
 
 ---
 
-## 4. Pipelines de recepción (separados)
+## 3. Datos `:8766`
+
+Cabecera: `PCTD` + `msg_type`.
+
+| `msg_type` | Nombre | Cuerpo |
+|---|---|---|
+| `0x00` | HELLO | `node_uuid` 16 |
+| `0x01` | BCAST | `msg_id` uint64 · `origin_uuid` 16 · `ts_ms` int64 · `payload_len` uint16 · `payload` |
+| `0x02` | BCAST_RECV | `msg_id` uint64 · `origin_uuid` 16 |
+
+`payload_len` máximo `0xFFFF`. `ts_ms` es `System.currentTimeMillis()` del emisor (reloj del teléfono); la cola de `send`/`pop` es FIFO, no se ordena por ese campo.
+
+HELLO no es tráfico de usuario: identifica la sesión para no casar el accept por IPv4 (PC-08 / fe80). BCAST no lleva destino. BCAST_RECV confirma al vecino de ingreso el `(origin, msg_id)`.
+
+---
+
+## 4. Pipelines
 
 ```mermaid
 flowchart TD
-    subgraph ctrl [Canal control :8765]
-        RXc[Recibir TCP control]
-        PARSEc[Parse PCT1]
-        CTL[dispatch LinkWorker / RouteSyncWorker]
-        RXc --> PARSEc --> CTL
+    subgraph ctrl [":8765 Link"]
+        RXc[TCP control]
+        PARSEc[magic 4 B]
+        JOIN[PING/ANNOUNCE]
+        RXc --> PARSEc --> JOIN
     end
-
-    subgraph data [Canal datos :8766]
-        RXd[Recibir TCP datos]
-        PARSEd[Parse PCT1 DATA]
-        LOCAL{dst == self?}
-        APP[deliver user]
-        FWD[ForwardWorker reenvío]
-        RXd --> PARSEd --> LOCAL
-        LOCAL -->|sí| APP
-        LOCAL -->|no| FWD
+    subgraph data [":8766 Data"]
+        RXd[TCP datos]
+        PARSEd["PCTD + msg_type"]
+        HEL{HELLO?}
+        ID[sesión identificada]
+        BC[BCAST: dedup ACK pop fan-out]
+        RXd --> PARSEd --> HEL
+        HEL -->|sí| ID
+        HEL -->|BCAST| BC
     end
 ```
 
-**Sin multiplexación:** no hay demux `type` en un único stream; el puerto ya separó control vs user.
+---
 
-### 4.1 Reglas de validación
+## 5. Recuperación del canal datos
 
-1. `destination` UUID válido (32 hex).
-2. Frame DATA en `:8765` o HELLO en `:8766` → **descartar** (channel mismatch).
-3. Reenvío user solo si `data_channel_state == OPEN` hacia next-hop.
-4. `type=control` nunca llega a la app de chat.
+Si `:8766` muere y `:8765` sigue:
+
+1. L3 cierra esa `DataTcpSession` y la saca del fan-out.
+2. El hijo vuelve a `connect` (mismo destino fe80, reintento 2 s).
+3. HELLO de nuevo cuando el padre acepte.
+
+No hay `DATA_CHANNEL_RESET` por control. No se llama `removeGroup()` por un fallo solo de datos.
 
 ---
 
-## 5. Recuperación canal datos
+## 6. Ejemplo A → B → C (user)
 
-Cuando `:8766` falla pero `:8765` sigue vivo:
-
-1. `DataChannelRecoveryWorker` marca `RECONNECTING`.
-2. Emisor envía `DATA_CHANNEL_RESET` por control.
-3. Secuencia [14-link-layer.md](14-link-layer.md) §5.2 (OPEN → connect → ACK).
-4. Reanudar cola user opcional (fuera alcance v0.2; puede descartarse en lab).
-
-**No** se llama `close()` del nodo ni `removeGroup()` por un fallo solo de datos.
-
----
-
-## 6. Ejemplo multisalto (user)
-
-A → B → C, todos con **dos** sockets por enlace.
-
-1. A crea envelope user; lookup ruta a C → next_hop B.
-2. A envía DATA por **`data_socket(A↔B)`** `:8766`.
-3. B ForwardWorker recibe en loop datos; reenvía por **`data_socket(B↔C)`**.
-4. C entrega a aplicación.
-
-TOPO/PING entre A↔B circulan en paralelo por **`ctrl_socket`**, sin competir con el DATA.
-
----
-
-## 7. Criterios de aceptación
-
-- [ ] Control y user en puertos distintos; mismatch detectado.
-- [ ] `ForwardWorker` solo en `:8766`.
-- [ ] Recuperación datos vía control sin reinicio L1.
-- [ ] Tests: entrega local, 2 hops, saturación user + control estable.
+1. C `send`: BCAST local + TCP al padre B.
+2. B: BCAST_RECV a C, `pop()`, BCAST a A.
+3. A: BCAST_RECV a B, `pop()`.
+4. PING/PONG A↔B y B↔C siguen en `:8765` al mismo tiempo.

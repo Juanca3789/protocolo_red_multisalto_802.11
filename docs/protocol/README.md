@@ -4,7 +4,8 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 
 **Proyecto de grado:** Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional.
 
-**Versión del spec:** `0.2.1-draft` (dos canales TCP: control 8765 + datos 8766)
+**Versión del spec (lo que corre):** `0.3.0` — `lib-pct-core` 2.3.0, canales TCP `:8765` (control) y `:8766` (broadcast).  
+El Incremento 1 (`0.1.0-pre`, `PCT1`, `_pct-seek`, JOIN_*) queda como diseño previo; no es el wire actual.
 
 **Autores:** Juan Carlos Clavijo Triviño, Brandon Stiven Ganzo Murcia
 
@@ -15,9 +16,9 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 | Entregable | Documento |
 |---|---|
 | Modelo por capas | [13-layer-model.md](13-layer-model.md) |
-| L2: TCP `:8765`, arista, tabla de rutas | [14-link-layer.md](14-link-layer.md) |
-| L3: reenvío usuario (solo nids) | [15-network-layer.md](15-network-layer.md) |
-| Envoltorio control / user | [16-packet-envelope.md](16-packet-envelope.md) |
+| L2: TCP `:8765`, ANNOUNCE, tabla 1 salto | [14-link-layer.md](14-link-layer.md) |
+| L3: broadcast greedy `:8766` | [15-network-layer.md](15-network-layer.md) |
+| Wire control / datos | [16-packet-envelope.md](16-packet-envelope.md) |
 | Roadmap prototipo → implementación | [17-implementation-roadmap.md](17-implementation-roadmap.md) |
 | Bugs link en Android (LK-xx) | [link-android-known-issues.md](link-android-known-issues.md) |
 | Estado lib-pct-core | [../prototype/lib-pct-core/README.md](../prototype/lib-pct-core/README.md) |
@@ -50,10 +51,11 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 1. **Capa de aplicación** sobre Wi-Fi Direct y STA legacy; sin root ni modificación MAC/PHY.
 2. **Todo nodo arranca como P2P GO** (`createGroup()`); prohibido `WifiP2pManager.connect()` para topología.
 3. **Enlaces padre-hijo** vía asociación **STA legacy** al SSID/PSK del GO padre.
-4. **Enrutamiento lógico** por `node_id` (UUID); IPv4 local solo como transporte hop-a-hop.
-5. **Unión simétrica:** nodos `ISLAND` anuncian `_pct-seek`; miembros responden con `JOIN_OFFER`.
-6. **Continuidad lógica** mediante `epoch` y `session_epoch` independientes del SSID.
-7. **Dos TCP:** `:8765` (identidad, arista, tabla) y `:8766` (usuario). Las IP no salen de L2.
+4. **Identidad** por `node_id` (UUID); IPv4 / `fe80` solo como transporte hop-a-hop dentro de L1/L2.
+5. **Unión actual:** browse `_pct-ctrl` (instance-v1) → STA → GO. `_pct-seek` / `JOIN_OFFER` es Incremento 1, no implementado.
+6. **Tabla L2** de vecinos a 1 salto (ANNOUNCE). REACH / destinos >1 salto, no.
+7. **Dos TCP:** `:8765` (PING/ANNOUNCE) y `:8766` (HELLO + BCAST greedy). Las IP no salen de L2.
+8. **Continuidad lógica** (`epoch`, `session_epoch`) sigue en el diseño del Incremento 1; esta build no la usa.
 
 ---
 
@@ -75,8 +77,8 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 
 | Servicio DNS-SD | Tipo | Anunciante |
 |---|---|---|
-| `_pct-seek._tcp` | Intención de unión | `ISLAND` |
-| `_pct-ctrl._tcp` | Control operativo | `ROOT`, `BRIDGE`, `LEAF` (perfil homogéneo) |
+| `_pct-ctrl._tcp` | Control operativo (instance-v1: credenciales) | `ROOT`, `BRIDGE` |
+| `_pct-seek._tcp` | Intención de unión (Incremento 1, no anuncia esta build) | — |
 
 **Puertos TCP por defecto (Incremento 2):**
 

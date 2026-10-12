@@ -1,6 +1,9 @@
 # 05 — Servicios DNS-SD (Wi-Fi Direct)
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1)
+
+> **Implementado:** solo `_pct-ctrl._tcp` con credenciales en el **instance-v1** (`p` + Base64URL `nid8|ssid|psk`). El TXT es respaldo: en Android a menudo no llega. Spec de laboratorio: [../prototype/proto-exp01-gostat/spec-mdns-dns-sd.md](../prototype/proto-exp01-gostat/spec-mdns-dns-sd.md).  
+> `_pct-seek._tcp` y el instance `pct-{nid_short}` de este archivo **no se anuncian** en 2.3.0.
 
 Los registros DNS-SD son pares clave=valor UTF-8. Los tamaños siguientes son **límites máximos teóricos pre-implementación**.
 

@@ -46,9 +46,11 @@ Radio.refreshGoClients()
             ├─ fe80:: de la iface GO           ├─ GoControlEndpoint  → goEndpointFlow
             ├─ Network de CM si existe (LK-08) │
             └─ si falta IPv4 → null            ┘
-Link
+Link  (:8765) y Data (:8766)
   ├─ combine(role, goEndpoint)  → ServerSocket en IPv4 y en fe80 de la iface GO
-  └─ combine(role, staNetwork, parentBssid) → Socket atado a STA → connect fe80(BSSID) :8765
+  └─ combine(role, staNetwork, parentBssid) → Socket atado a STA → connect fe80(BSSID)
+
+El accept de `:8766` **no** se casa con `ipv4OnLink` de la tabla (el hijo llega por fe80). La sesión de datos se identifica con HELLO (UUID) cuando el vecino ya está en tabla.
 ```
 
 - `GoControlEndpoint(network?, iface, hostIpv4, linkLocalIpv6?)` vive en `radio/`.

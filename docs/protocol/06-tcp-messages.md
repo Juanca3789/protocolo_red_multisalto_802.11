@@ -1,8 +1,10 @@
 # 06 — Mensajes TCP (wire format)
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1, **no implementado**)
 
-Codificación: **binario big-endian**. Todos los mensajes usan el mismo encabezado.
+> Lo que sale por el cable en `lib-pct-core` 2.3.0 está en [14-link-layer.md](14-link-layer.md) (control: `PCTG`/`PCTP`/`PCTA`/`PCTO`) y [16-packet-envelope.md](16-packet-envelope.md) (datos: `PCTD` + HELLO/BCAST). Este archivo conserva el catálogo `PCT1` original.
+
+Codificación propuesta: **binario big-endian**. Todos los mensajes usarían el mismo encabezado.
 
 ---
 

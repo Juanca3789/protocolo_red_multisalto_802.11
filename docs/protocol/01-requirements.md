@@ -2,6 +2,8 @@
 
 **Versión:** 0.1.0-pre | **Incremento:** 1
 
+> Requisitos del diseño original. En 2.3.0: RF-02 se cumple **después** del browse (GO apagado 15 s, luego STA, luego `createGroup`); RF-06/07 no (`_pct-seek` / JOIN_*); RF-08 es tabla a 1 salto; RF-09 no (el recorte es dedup de BCAST). PING/PONG sí (RF-10).
+
 ---
 
 ## 1. Requisitos funcionales

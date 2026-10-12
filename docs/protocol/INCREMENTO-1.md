@@ -2,7 +2,9 @@
 
 **Proyecto:** PCT — Protocolo de Control Topológico  
 **Versión spec:** 0.1.0-pre  
-**Estado:** Diseño formal completado (pre-implementación Android)
+**Estado:** Diseño formal completado (pre-implementación Android).
+
+**Qué se implementó después:** Incremento 2 en [README.md](README.md) (índice) y docs 13–17. Unión real = browse `_pct-ctrl` + STA + GO; control = ANNOUNCE en `:8765`; usuario = BCAST en `:8766`. `_pct-seek`, `PCT1` y JOIN_* de este incremento no están en `lib-pct-core` 2.3.0.
 
 ---
 

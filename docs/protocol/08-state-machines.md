@@ -1,6 +1,8 @@
 # 08 — Máquinas de estado
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1)
+
+> Roles que sí usa el código: `ISLAND` → (tras STA opcional + GO) `ROOT` o `BRIDGE`. L2/L3 corren con `role != ISLAND`. No hay máquina `R_ISLAND_SEEK` / `_pct-seek` ni `LEAF` como estado distinto: todo nodo con GO acepta hijos.
 
 ---
 

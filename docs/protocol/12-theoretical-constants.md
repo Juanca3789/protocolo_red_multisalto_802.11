@@ -1,8 +1,8 @@
 # 12 — Constantes teóricas pre-implementación
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1)
 
-Valores **meramente teóricos** para diseño y primera implementación Android. Deben refinarse tras EXP-01..EXP-06.
+Valores **meramente teóricos** para el diseño original. Lo que usa el código está en [14-link-layer.md](14-link-layer.md) §6 (8765, PING 5 s, PONG 8 s) y [15-network-layer.md](15-network-layer.md) (8766, HELLO 8 s, SeenCache 512). Magic real: `PCTG`/`PCTP`/`PCTA`/`PCTO` y `PCTD`, no `PCT1`.
 
 ---
 

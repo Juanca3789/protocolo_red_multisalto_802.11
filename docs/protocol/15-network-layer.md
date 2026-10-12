@@ -1,46 +1,75 @@
-# 15 — Capa 3: reenvío de usuario (solo nids)
+# 15 — Capa 3: broadcast greedy (`data/`)
 
-**Versión:** 0.3.0-draft  
-**Prerequisito:** [14-link-layer.md](14-link-layer.md)
+**Versión:** 0.4.0 (lib-pct-core 2.3.0)  
+**Código:** `data/Data.kt`, `data/tcp/DataTcpSession.kt`, `data/codec/`, `data/SeenCache.kt`.  
+**Prerequisito:** [14-link-layer.md](14-link-layer.md). Wire: [16-packet-envelope.md](16-packet-envelope.md).
+
+El reenvío unicast por tabla (`MeshSocket.send(destino)` + `hop_limit` + `path_trace`) es diseño del Incremento 1 / [07-routing-and-topology.md](07-routing-and-topology.md). **No corre.** Hoy L3 no mira para quién es el mensaje.
 
 ---
 
 ## 1. Reparto
 
-La **tabla de rutas** está en L2: L2 conoce sockets e IP. L3 no guarda IPs.
+L2 tiene la tabla de vecinos a 1 salto. L3 no guarda IPs.
 
-L3 solo ve `node_id`. Su trabajo: “este payload de usuario va al nid D”. Pregunta a L2 el siguiente salto (otro nid) y le pide enviarlo por **`:8766`**. Si D soy yo, lo entrega a la app.
+API hacia la app (`MultiHopProtocol`):
 
-```
-app → MeshSocket.send(destino_nid, bytes)   // nid, no IP
-        → L2: siguiente = tabla[destino]
-        → L2 escribe en :8766 del vecino `siguiente`
-        → el MeshSocket de ese vecino repite hasta llegar
-```
+| Método | Qué hace |
+|---|---|
+| `send(destination, payload)` | En v1 **ignora** `destination`. Encola FIFO y emite un BCAST. |
+| `pop()` | `(origen: NodeId, payload)`. FIFO. El timestamp va en el frame, no ordena la cola. |
 
-Sin NAT. Sin enrutar por IP de destino final.
+El nombre del origen para la UI sale de la tabla L2 (caché en la demo). A más de un salto el paquete no lleva nombre: se muestra el UUID corto.
 
 ---
 
-## 2. Reglas
+## 2. Cuándo se abre `:8766`
 
-- Un paquete lleva `destino_nid` y un tope de saltos (máx. 7). Si el tope llega a 0, se descarta.
-- No reenviar por el mismo vecino del que llegó si eso cierra un ciclo.
-- L3 no abre puertos ni conoce `192.168.49.x`.
-- Si L2 no tiene ruta a D, no hay envío (no se inventa un flood).
+Misma geometría que L2, otro puerto:
 
-Detalle de fusión de anuncios y límites: [07-routing-and-topology.md](07-routing-and-topology.md). La autoridad de la tabla es L2 ([14](14-link-layer.md) §3).
+- **GO:** listen en el `GoControlEndpoint` (IPv4 + fe80) en cuanto `role != ISLAND` y hay endpoint. El `accept` TCP ocurre siempre; la sesión **no habla** hasta un HELLO cuyo UUID ya está en la tabla (gracia 2 s por si ANNOUNCE y HELLO llegan juntos).
+- **Hijo:** `connect` por la STA a `fe80` del padre **después** de que la tabla tenga al menos un vecino (ANNOUNCE_OK hecho). Manda HELLO, espera HELLO del padre (8 s).
+
+No se casa el accept por IPv4 remota: el hijo llega por fe80 y `ipv4OnLink` es `192.168.49.x`. El HELLO de 16 bytes es la identidad.
+
+Si el padre no está escuchando aún, el hijo reintenta cada 2 s. Si `:8766` se cae y `:8765` sigue, se reabre solo el canal de datos.
 
 ---
 
-## 3. Ejemplo (vista L3)
+## 3. Relay (broadcast greedy)
 
-A ← B ← C. Chat de C hacia A:
+Responsabilidad **por salto**, no extremo a extremo. En A → B → C, A solo entrega a B; B entrega a C. No hay ACK multisalto.
 
-| Nodo | L3 decide | L2 hace |
-|---|---|---|
-| C | destino A, siguiente B | escribe `:8766` hacia B |
-| B | destino A, siguiente A | escribe `:8766` hacia A |
-| A | destino soy yo | entrega a la app |
+Al recibir un BCAST:
 
-Las IP de cada hop solo existen dentro de L2.
+1. Decodificar. Si falla → cerrar sesión.
+2. Clave dedup `(origin_uuid, msg_id)` en `SeenCache` (LRU 512). Si ya se vio → drop, sin re-entregar.
+3. `BCAST_RECV` al vecino de ingreso (misma sesión). TCP ya reintenta; el ACK es para no dudar y poder reaccionar después.
+4. `incoming` ← `(origin, payload)` → `pop()`.
+5. El **mismo frame** a todas las sesiones identificadas **excepto** el ingreso (padre + hijos).
+
+Origen local (`send`): nuevo `msg_id`, `origin = local`, `ts_ms = currentTimeMillis()`, entrega local (sin ACK a uno mismo) + fan-out.
+
+No hay `dest_uuid`, ni UUID “ALL”, ni TTL. El recorte es el árbol + el dedup. Un árbol A—B—C con un envío desde A: A local, B relay a C, C no tiene a quién más mandar.
+
+---
+
+## 4. Ejemplo
+
+A (ROOT) ← B (BRIDGE) ← C (hoja). C escribe en L3:
+
+| Nodo | Qué hace |
+|---|---|
+| C | BCAST local + fan-out al padre (única sesión) |
+| B | dedup, ACK a C, `pop()`, fan-out a A (no a C) |
+| A | dedup, ACK a B, `pop()`, no hay más vecinos |
+
+Dos hijos de A: el mensaje de uno llega al otro porque A lo repele hacia todos menos el ingreso.
+
+---
+
+## 5. Qué queda fuera (siguiente)
+
+- Unicast / `dest_uuid` / REACH en `:8765`.
+- `hop_limit` y `path_trace`.
+- Mensaje de control `DATA_CHANNEL_OPEN` (el canal se abre por tabla + HELLO).

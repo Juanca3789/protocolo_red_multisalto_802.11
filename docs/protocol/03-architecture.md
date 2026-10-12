@@ -1,6 +1,8 @@
 # 03 — Arquitectura del sistema
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1)
+
+> Módulos reales: `MultiHopProtocol` → `Radio` + `Link` + `Data`. No hay `JoinManager` / `RoutingEngine` / `Forwarder` como clases. Ver [13-layer-model.md](13-layer-model.md).
 
 ---
 

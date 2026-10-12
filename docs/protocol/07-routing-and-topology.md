@@ -1,6 +1,8 @@
 # 07 — Enrutamiento y topología
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1, **no implementado**)
+
+> Hoy la tabla es `NeighborTable` a **1 salto** ([14-link-layer.md](14-link-layer.md)). L3 no consulta next-hop: es broadcast greedy ([15-network-layer.md](15-network-layer.md)). `TOPO_UPDATE`, `path_trace` y el `Forwarder` unicast de este archivo no corren.
 
 ---
 

@@ -2,6 +2,8 @@
 
 **Versión:** 0.1.0-pre
 
+> El principio (todo nodo es GO; padre-hijo por STA legacy; nada de `connect()`) **sí** es lo que corre. El orden de arranque no es “GO primero”: browse 15 s con GO apagado, luego STA, luego `createGroup` + publish ([13-layer-model.md](13-layer-model.md) §2).
+
 ---
 
 ## 1. Principio rector

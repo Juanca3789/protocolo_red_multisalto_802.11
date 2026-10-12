@@ -1,6 +1,8 @@
 # 09 — Protocolo de unión simétrica
 
-**Versión:** 0.1.0-pre
+**Versión:** 0.1.0-pre (Incremento 1, **no implementado**)
+
+> Unión actual (exp01): browse `_pct-ctrl` 15 s sin GO → STA → `createGroup` + publish. Join TCP = ANNOUNCE en `:8765` ([14-link-layer.md](14-link-layer.md)). Este documento describe `_pct-seek` / `JOIN_OFFER`.
 
 ---
 
