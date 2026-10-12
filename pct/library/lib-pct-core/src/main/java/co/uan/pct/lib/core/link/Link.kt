@@ -14,6 +14,7 @@ import co.uan.pct.lib.core.types.ListenHealth
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
 import co.uan.pct.lib.core.types.UpstreamHealth
+import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -47,6 +48,7 @@ class Link(
     private val goEndpointFlow: StateFlow<GoControlEndpoint?>,
     private val staNetworkFlow: StateFlow<Network?>,
     private val parentBssidFlow: StateFlow<String?>,
+    private val connectedMacsFlow: StateFlow<List<String>> = MutableStateFlow(emptyList()),
 ) {
     private val connectivity =
         context.applicationContext.getSystemService(ConnectivityManager::class.java)
@@ -64,6 +66,10 @@ class Link(
     private var goEndpointWatchJob: Job? = null
     private var staNetworkWatchJob: Job? = null
     private var staUpstreamJob: Job? = null
+    private var macWatchJob: Job? = null
+    private val uuidByMac = Collections.synchronizedMap(linkedMapOf<String, Uuid>())
+    private val macByUuid = Collections.synchronizedMap(linkedMapOf<Uuid, String>())
+    private var lastGoMacs = emptySet<String>()
     private val goListenSockets = mutableListOf<ServerSocket>()
     private val goAcceptJobs = mutableListOf<Job>()
     private var goListenBoundEndpoint: GoControlEndpoint? = null
@@ -108,6 +114,12 @@ class Link(
                 staUpstreamJob = launch { maintainUpstreamOverSta(staNetwork, bssid) }
             }
         }
+        macWatchJob = scope.launch {
+            connectedMacsFlow.collect { macs ->
+                if (!active) return@collect
+                onGoMacsChanged(macs)
+            }
+        }
     }
 
     fun stop() {
@@ -117,9 +129,14 @@ class Link(
         goEndpointWatchJob?.cancel()
         staNetworkWatchJob?.cancel()
         staUpstreamJob?.cancel()
+        macWatchJob?.cancel()
         goEndpointWatchJob = null
         staNetworkWatchJob = null
         staUpstreamJob = null
+        macWatchJob = null
+        uuidByMac.clear()
+        macByUuid.clear()
+        lastGoMacs = emptySet()
         upstreamSession?.closeQuietly()
         upstreamSession = null
         closeAllGoSessions()
@@ -190,7 +207,15 @@ class Link(
             goHostIpv4 = { goEndpointFlow.value?.hostIpv4 },
             onChildAnnounced = { s -> onChildAnnounced(s) },
             onReachBetter = { ingress, dest, hops -> floodReach(except = ingress, dest = dest, hopsFromHere = hops) },
-            onClosed = { sessionRef?.let { goSessions.remove(it) } },
+            onUnreach = { ingress, dest -> onUnreachForward(ingress, dest) },
+            onClosed = {
+                val s = sessionRef ?: return@ControlTcpSession
+                goSessions.remove(s)
+                if (active && roleFlow.value != Role.ISLAND) {
+                    unlinkVia(s.peerIpv4, except = s)
+                }
+                forgetMac(s.peerUuid)
+            },
         )
         sessionRef = session
         goSessions.add(session)
@@ -240,6 +265,7 @@ class Link(
                 continue
             }
             PctLog.event("link: upstream ${if (fe80 != null) "fe80" else "ipv4"} dst=${target.hostAddress}")
+            var sessionRef: ControlTcpSession? = null
             val session = ControlTcpSession(
                 socket = connected,
                 scope = scope,
@@ -248,7 +274,16 @@ class Link(
                 mode = ControlTcpSession.Mode.UPSTREAM,
                 goHostIpv4 = { goEndpointFlow.value?.hostIpv4 },
                 onReachBetter = { ingress, dest, hops -> floodReach(except = ingress, dest = dest, hopsFromHere = hops) },
+                onUnreach = { ingress, dest -> onUnreachForward(ingress, dest) },
+                onClosed = {
+                    val s = sessionRef ?: return@ControlTcpSession
+                    if (upstreamSession === s) upstreamSession = null
+                    if (active && roleFlow.value != Role.ISLAND) {
+                        unlinkVia(s.peerIpv4, except = s)
+                    }
+                },
             )
+            sessionRef = session
             upstreamSession = session
             session.start()
             runCatching {
@@ -280,9 +315,79 @@ class Link(
 
     private fun onChildAnnounced(childSession: ControlTcpSession) {
         val child = childSession.peerNodeId ?: return
+        bindMacForChild(childSession)
         dumpTableTo(childSession, except = child.identifier)
         floodReach(except = childSession, dest = child, hopsFromHere = 1)
     }
+
+    private fun onGoMacsChanged(macs: List<String>) {
+        val now = macs.map(::normalizeMac).filter { it.isNotEmpty() }.toSet()
+        val lost = lastGoMacs - now
+        lastGoMacs = now
+        if (!active || roleFlow.value == Role.ISLAND) return
+        for (mac in lost) {
+            val uuid = uuidByMac[mac] ?: continue
+            PctLog.event("link: mac down $mac dest=$uuid")
+            unlinkChild(uuid)
+            sessionOf(uuid)?.closeQuietly()
+        }
+    }
+
+    private fun unlinkChild(uuid: Uuid) {
+        val via = neighborTable.entries.value
+            .firstOrNull { it.nodeId.identifier == uuid }
+            ?.ipv4OnLink
+            ?: return
+        unlinkVia(via, except = sessionOf(uuid))
+    }
+
+    private fun unlinkVia(viaIpv4: String?, except: ControlTcpSession?) {
+        if (viaIpv4.isNullOrBlank()) return
+        val gone = neighborTable.removeIfVia(viaIpv4)
+        if (gone.isEmpty()) return
+        gone.forEach { forgetMac(it.nodeId.identifier) }
+        PctLog.event("link: unlink via=$viaIpv4 dests=${gone.joinToString { it.nodeId.name }}")
+        if (active && roleFlow.value != Role.ISLAND) {
+            floodUnreach(except, gone.map { it.nodeId.identifier })
+        }
+    }
+
+    private fun onUnreachForward(ingress: ControlTcpSession, dest: Uuid) {
+        forgetMac(dest)
+        floodUnreach(except = ingress, dests = listOf(dest))
+    }
+
+    private fun bindMacForChild(session: ControlTcpSession) {
+        val uuid = session.peerUuid ?: return
+        if (macByUuid.containsKey(uuid)) return
+        macFromLinkLocal(session.remoteInetAddress)?.let { mac ->
+            rememberMac(uuid, mac)
+            PctLog.event("link: mac map eui64 $mac -> $uuid")
+            return
+        }
+        val unbound = lastGoMacs - uuidByMac.keys
+        if (unbound.size == 1) {
+            val mac = unbound.first()
+            rememberMac(uuid, mac)
+            PctLog.event("link: mac map join $mac -> $uuid")
+        }
+    }
+
+    private fun rememberMac(uuid: Uuid, mac: String) {
+        val key = normalizeMac(mac)
+        if (key.isEmpty()) return
+        macByUuid[uuid]?.let { old -> if (old != key) uuidByMac.remove(old) }
+        uuidByMac[key] = uuid
+        macByUuid[uuid] = key
+    }
+
+    private fun forgetMac(uuid: Uuid?) {
+        if (uuid == null) return
+        macByUuid.remove(uuid)?.let { uuidByMac.remove(it) }
+    }
+
+    private fun sessionOf(uuid: Uuid): ControlTcpSession? =
+        controlSessions().firstOrNull { it.peerUuid == uuid }
 
     private fun dumpTableTo(session: ControlTcpSession, except: Uuid) {
         for (entry in neighborTable.entries.value) {
@@ -298,6 +403,31 @@ class Link(
             if (session.peerUuid == dest.identifier) continue
             session.send(frame)
         }
+    }
+
+    private fun floodUnreach(except: ControlTcpSession?, dests: List<Uuid>) {
+        for (dest in dests) {
+            if (dest == localNodeId.identifier) continue
+            val frame = ControlPacket.Unreach(dest).toWireBytes()
+            for (session in controlSessions()) {
+                if (session === except || !session.isIdentified) continue
+                if (session.peerUuid == dest) continue
+                session.send(frame)
+            }
+        }
+    }
+
+    private fun normalizeMac(raw: String): String =
+        raw.trim().lowercase().replace('-', ':')
+
+    private fun macFromLinkLocal(addr: InetAddress?): String? {
+        if (addr !is Inet6Address || !addr.isLinkLocalAddress) return null
+        val bytes = addr.address
+        if (bytes.size != 16) return null
+        if (bytes[11] != 0xFF.toByte() || bytes[12] != 0xFE.toByte()) return null
+        val mac0 = (bytes[8].toInt() xor 0x02).toByte()
+        return byteArrayOf(mac0, bytes[9], bytes[10], bytes[13], bytes[14], bytes[15])
+            .joinToString(":") { "%02x".format(it.toInt() and 0xFF) }
     }
 
     private fun controlSessions(): List<ControlTcpSession> {

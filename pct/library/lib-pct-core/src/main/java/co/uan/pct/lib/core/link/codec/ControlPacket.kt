@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * Paquete de control link (:8765). Cuerpo node: | uuid 16 | name_len 2 | name utf-8 | ipv4 4 |
@@ -68,6 +69,21 @@ sealed class ControlPacket {
                     putShort(nameBytes.size.toShort())
                     put(nameBytes)
                     put(hopsFromReporter.toByte())
+                }
+                .array()
+        }
+    }
+
+    /** Baja de destino. Cuerpo solo UUID; el next-jump es el vecino de ingreso. */
+    data class Unreach(val destUuid: Uuid) : ControlPacket() {
+        override fun toWireBytes(): ByteArray {
+            val uuidBytes = destUuid.toByteArray()
+            require(uuidBytes.size == UUID_BYTES)
+            return ByteBuffer.allocate(ControlPacketKind.UNREACH.magic.size + UUID_BYTES)
+                .order(ByteOrder.BIG_ENDIAN)
+                .apply {
+                    put(ControlPacketKind.UNREACH.magic)
+                    put(uuidBytes)
                 }
                 .array()
         }

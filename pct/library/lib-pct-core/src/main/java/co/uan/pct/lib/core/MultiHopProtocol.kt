@@ -84,6 +84,7 @@ class MultiHopProtocol(
             goEndpointFlow = _goEndpoint.asStateFlow(),
             staNetworkFlow = _staNetwork.asStateFlow(),
             parentBssidFlow = _parentBssid.asStateFlow(),
+            connectedMacsFlow = _connectedMacs,
         )
         data = Data(
             context = multiHopContext,

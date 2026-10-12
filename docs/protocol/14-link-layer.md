@@ -45,6 +45,7 @@ Binario big-endian. Cada mensaje empieza por un magic de 4 ASCII. **No hay heade
 | `PCTA` | ANNOUNCE | `uuid` 16 · `name_len` uint16 · `name` UTF-8 · `ipv4` 4 |
 | `PCTO` | ANNOUNCE_OK | igual que ANNOUNCE |
 | `PCTR` | REACH | `uuid` · `name` · `hops_reportero` uint8 (sin IPv4 del destino) |
+| `PCTU` | UNREACH | `uuid` 16 (sin nombre ni hops; el next-jump es el vecino de ingreso) |
 
 `name_len` ∈ 1..512. IPv4 es la del anunciante **en esa arista** (STA del hijo, `.1` del GO del padre).
 
@@ -56,28 +57,31 @@ Binario big-endian. Cada mensaje empieza por un magic de 4 ASCII. **No hay heade
 4. Hijo: registra al padre con `hops=1`.
 5. Padre: volcado REACH del resto de la tabla al hijo, y REACH del hijo a los demás hop 1.
 6. Keep-alive: PING cada 5 s; si PONG no llega en 8 s, se cierra el socket y el hijo reintenta.
+7. Si se cae un hijo (MAC fuera de `connectedMacs`, o `onClosed` del TCP) o el upstream/STA: quien lo ve borra esa arista (`removeIfVia`) y flood `UNREACH(uuid)` por el resto de hop 1 (split horizon, un frame por destino). Quien recibe borra solo si el next-jump era el peer de ingreso, y sigue el flood.
 
 Timeout de lectura del socket: 15 s. Connect: 15 s. Reintento: 2 s.
 
-Un frame que no sea de esos cuatro se descarta (el lector corta la sesión).
+Un magic que no sea de esos se descarta (el lector corta la sesión).
 
 ---
 
 ## 4. Tabla (`NeighborTable`)
 
-Índice = `node_id.identifier` (UUID). API: `addEntry`, `removeEntryByUuid`, `clear`, `entries` como `StateFlow`.
+Índice = `node_id.identifier` (UUID). API: `addEntry`, `installIfBetter`, `removeIfVia`, `removeEntryByUuid`, `clear`, `entries` como `StateFlow`.
 
 | Campo | Qué es |
 |---|---|
 | `nodeId` | UUID + nombre |
-| `ipv4OnLink` | IPv4 de esa arista (la que trajo ANNOUNCE / OK) |
-| `hops` | ≥ 1; hoy siempre 1 |
+| `ipv4OnLink` | IPv4 de esa arista (ANNOUNCE / OK) o next-jump (REACH) |
+| `hops` | ≥ 1; hop 1 por ANNOUNCE, hop > 1 por REACH |
 
-Hop > 1 llega por REACH: la IP de esa fila es el next-jump, no la del destino. No hay columna extra. Bajas al desconectar: todavía no.
+Hop > 1: la IP de esa fila es el next-jump, no la del destino. No hay columna extra. La baja usa el mismo índice: `removeIfVia(nextJump)` se lleva al hop 1 caído y a todo lo que solo se veía por esa arista.
 
-Vista hacia L3: lista de vecinos directos. L3 **no** usa `ipv4OnLink` para conectar (el accept de `:8766` se identifica con HELLO por UUID; casar por IPv4 rompe con fe80).
+El GO no guarda MAC en la tabla. Link mapea `connectedMacs` → UUID (EUI-64 del `fe80` del accept, o el MAC recién aparecido y aún sin dueño). Si no hay mapa, el `onClosed` de esa `ControlTcpSession` hace el mismo `unlink` (idempotente).
 
-Si se cae el TCP o el STA, L2 cierra la sesión. `stop()` vacía la tabla. L2 no toca el GO.
+Vista hacia L3: lista de vecinos. L3 **no** usa `ipv4OnLink` para conectar (el accept de `:8766` se identifica con HELLO por UUID; casar por IPv4 rompe con fe80). Sin fila no hay unicast/broadcast hacia ese destino; L3 cierra la `DataTcpSession` hop 1 si el UUID salió de la tabla.
+
+`stop()` vacía la tabla. L2 no toca el GO.
 
 ---
 
@@ -108,5 +112,5 @@ Si se cae el TCP o el STA, L2 cierra la sesión. `stop()` vacía la tabla. L2 no
 
 ## 7. Verificación
 
-Codec: `ControlCodecTest` (round-trip PING/PONG/ANNOUNCE/OK).  
-En dispositivo: logs `link: listen go :8765 bind=…`, `link: announce_ok parent=…`, `link: announce child=…`. Upstream esperado: `link: upstream fe80 dst=fe80::…`. Si sale `upstream ipv4 fallback`, el BSSID llegó redactado.
+Codec: `ControlCodecTest` (round-trip PING/PONG/ANNOUNCE/OK/REACH/UNREACH).  
+En dispositivo: logs `link: listen go :8765 bind=…`, `link: announce_ok parent=…`, `link: announce child=…`, `link: unlink via=…`, `link: unreach dest=…`. Upstream esperado: `link: upstream fe80 dst=fe80::…`. Si sale `upstream ipv4 fallback`, el BSSID llegó redactado.

@@ -14,6 +14,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.io.OutputStream
+import java.net.InetAddress
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -21,7 +22,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-/** Un TCP :8765: cola de salida + lector; PING/PONG, ANNOUNCE/OK y REACH. */
+/** Un TCP :8765: cola de salida + lector; PING/PONG, ANNOUNCE/OK, REACH y UNREACH. */
 @OptIn(ExperimentalUuidApi::class)
 internal class ControlTcpSession(
     private val socket: Socket,
@@ -32,6 +33,7 @@ internal class ControlTcpSession(
     private val goHostIpv4: () -> String?,
     private val onChildAnnounced: ((ControlTcpSession) -> Unit)? = null,
     private val onReachBetter: ((ingress: ControlTcpSession, dest: NodeId, localHops: Int) -> Unit)? = null,
+    private val onUnreach: ((ingress: ControlTcpSession, dest: Uuid) -> Unit)? = null,
     private val onClosed: (() -> Unit)? = null,
 ) {
     enum class Mode {
@@ -62,6 +64,9 @@ internal class ControlTcpSession(
 
     val isIdentified: Boolean
         get() = peerNodeId != null && socketAlive()
+
+    val remoteInetAddress: InetAddress?
+        get() = runCatching { socket.inetAddress }.getOrNull()
 
     @Volatile
     private var closed = false
@@ -161,6 +166,7 @@ internal class ControlTcpSession(
                     }
                     is ControlPacket.AnnounceOk -> handleAnnounceOk(packet)
                     is ControlPacket.Reach -> handleReach(packet)
+                    is ControlPacket.Unreach -> handleUnreach(packet)
                 }
             }
         } finally {
@@ -213,6 +219,14 @@ internal class ControlTcpSession(
                 "via=$via hops=$hops",
         )
         onReachBetter?.invoke(this, packet.nodeId, hops)
+    }
+
+    private fun handleUnreach(packet: ControlPacket.Unreach) {
+        if (packet.destUuid == localNodeId.identifier) return
+        val via = peerIpv4 ?: return
+        if (!neighborTable.removeIfVia(packet.destUuid, via)) return
+        PctLog.event("link: unreach dest=${packet.destUuid} via=$via")
+        onUnreach?.invoke(this, packet.destUuid)
     }
 
     private fun socketAlive(): Boolean = !closed && !socket.isClosed && socket.isConnected

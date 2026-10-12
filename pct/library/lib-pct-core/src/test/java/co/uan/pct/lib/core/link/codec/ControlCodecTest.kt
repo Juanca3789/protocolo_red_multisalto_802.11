@@ -38,6 +38,14 @@ class ControlCodecTest {
     }
 
     @Test
+    fun roundTrip_unreach() {
+        val dest = Uuid.random()
+        val decoded = readControlPacket(ControlPacket.Unreach(dest).toWireBytes()) as ControlPacket.Unreach
+        assertEquals(dest, decoded.destUuid)
+        assertTrue(decoded.toWireBytes()[3] == 'U'.code.toByte())
+    }
+
+    @Test
     fun roundTrip_announceOk() {
         val id = NodeId(Uuid.random(), "root_A24")
         val frame = ControlPacket.AnnounceOk(id, "192.168.49.1").toWireBytes()

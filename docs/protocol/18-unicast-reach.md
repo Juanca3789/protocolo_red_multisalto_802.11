@@ -1,8 +1,8 @@
-# 18 — Unicast y aviso de destinos (REACH)
+# 18 — Unicast y aviso de destinos (REACH / UNREACH)
 
-**Versión:** 0.2.0 (lib-pct-core 2.3.0)  
-**Estado:** implementado. Sin lógica de baja cuando se cae un vecino (se piensa después).  
-**Capa:** aviso por **`:8765`** (`PCTR`). Unicast de usuario en **`:8766`** (`UNICAST` / `UNICAST_RECV`). Broadcast greedy intacto (solo hop 1).
+**Versión:** 0.3.0 (lib-pct-core 2.3.0)  
+**Estado:** implementado (alta y baja).  
+**Capa:** aviso por **`:8765`** (`PCTR` / `PCTU`). Unicast de usuario en **`:8766`** (`UNICAST` / `UNICAST_RECV`). Broadcast greedy intacto (solo hop 1).
 
 El nombre REACH no cuadra del todo (no es “alcanzar un destino” al estilo IP): es “alguien nuevo en mi árbol, avisa a padre e hijos”. Sirve mientras no haya otro. El cuerpo es UUID + nombre + saltos del reportero; **no** la IPv4 del destino.
 
@@ -253,12 +253,24 @@ El frame de datos sí lleva `dest_uuid` (y origen, msg_id, payload). El broadcas
 - No es un socket por destino remoto. Un TCP de datos por arista hop 1, como ahora.
 - No es casar accept por la IPv4 de un nodo a 2 saltos.
 - No sustituye fe80 en el connect al padre (PC-08). La IPv4 de la tabla solo elige **cuál sesión hop 1** usar.
-- Si C se cae, hay que borrar a C y a todo lo que solo se alcanzaba por C (D en A y en B). Eso es baja de vecino; no está en este planteo más que como deuda.
+- UNREACH no inventa un segundo índice: solo `ipv4OnLink` (next-jump). Si la fila se tenía por otra IP, no se toca.
 
 ---
 
-## 8. Hecho / falta
+## 8. UNREACH (`PCTU`) — la misma geometría al revés
 
-Hecho: codec REACH, volcado + flood al ANNOUNCE, split horizon, unicast `:8766`, broadcast solo hop 1. Demo L2 muestra hop > 1. Chat L3 sigue en `broadcast()`.
+Quien **detecta** la caída (MAC que se fue del GO, o se murió el TCP/STA) borra en local al caído y a todo lo que solo se veía por esa arista (`ipv4OnLink` = next-jump de ese vecino) y flood `UNREACH(uuid)` por las demás sesiones hop 1. Un frame por destino, split horizon igual que REACH.
 
-Falta: borrar filas cuando se cae un vecino.
+Quien recibe: si esa fila tenía next-jump = el peer de ingreso, la borra y sigue el flood. Si la tenía por otra IP, no toca.
+
+En A—{B,C}—D: se va C → A flood `UNREACH(C,D)` a B. Se va A → C flood `UNREACH(A,B)` a D. C no borra a D (otra arista).
+
+La tabla no guarda MAC. Link mapea `deviceAddress` → UUID (EUI-64 del `fe80` del accept, o el MAC que acababa de aparecer y aún no tenía dueño). Si un MAC se va sin mapa, el `onClosed` de esa sesión hace el mismo `unlink`. Idempotente.
+
+L3 no tiene paquete de baja: sin fila no hay unicast/broadcast; se cierra la `DataTcpSession` del hop 1 si existía.
+
+---
+
+## 9. Hecho
+
+Codec REACH/UNREACH, volcado + flood al ANNOUNCE, flood UNREACH al detectar la caída, split horizon, unicast `:8766`, broadcast solo hop 1. Demo L2 muestra hop > 1. Chat L3 sigue en `broadcast()`.

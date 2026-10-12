@@ -11,7 +11,7 @@ El framing `PCT1` de 12 bytes y el DATA unicast con `dst_nid` de [06-tcp-message
 
 | Canal | Puerto | Magic | Capa |
 |---|---|---|---|
-| Control | 8765 | 4 ASCII distintos por tipo (`PCTG` `PCTP` `PCTA` `PCTO` `PCTR`) | L2 |
+| Control | 8765 | 4 ASCII distintos por tipo (`PCTG` `PCTP` `PCTA` `PCTO` `PCTR` `PCTU`) | L2 |
 | Datos | 8766 | `PCTD` (4 B) + `msg_type` (1 B, byte 5) | L3 |
 
 No compartir socket. Desde el byte 5 del canal datos ya se sabe qué cuerpo leer; no hay versión. El `dest_uuid` solo va en UNICAST.
@@ -53,6 +53,15 @@ Sin header común. El magic de 4 bytes **es** el tipo.
 
 Sin IPv4 del destino. El receptor usa la del vecino de ingreso como next-jump y guarda `hops_reportero + 1`. Detalle: [18-unicast-reach.md](18-unicast-reach.md).
 
+### UNREACH (`PCTU`)
+
+| Offset | Tamaño | Campo |
+|---|---|---|
+| 0 | 4 | magic |
+| 4 | 16 | `node_uuid` que ya no se alcanza |
+
+Sin nombre ni hops. Quien detecta la caída borra esa arista (`ipv4OnLink` = next-jump del caído) y flood un `PCTU` por cada UUID borrado. Quien recibe borra solo si su fila tenía ese next-jump = peer de ingreso, y reenvía. Sin fila, L3 no tiene a quién escribir y cierra la sesión de datos hop 1 si existía.
+
 ---
 
 ## 3. Datos `:8766`
@@ -80,7 +89,7 @@ flowchart TD
     subgraph ctrl [":8765 Link"]
         RXc[TCP control]
         PARSEc[magic 4 B]
-        JOIN[PING/ANNOUNCE]
+        JOIN[PING/ANNOUNCE/REACH/UNREACH]
         RXc --> PARSEc --> JOIN
     end
     subgraph data [":8766 Data"]

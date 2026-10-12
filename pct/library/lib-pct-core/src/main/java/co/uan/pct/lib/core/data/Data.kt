@@ -74,6 +74,7 @@ class Data(
     private var upstreamWatchJob: Job? = null
     private var upstreamJob: Job? = null
     private var sendWorkerJob: Job? = null
+    private var neighborWatchJob: Job? = null
     private val goListenSockets = mutableListOf<ServerSocket>()
     private val goAcceptJobs = mutableListOf<Job>()
     private var goListenBoundEndpoint: GoControlEndpoint? = null
@@ -121,6 +122,16 @@ class Data(
             }
         }
         sendWorkerJob = scope.launch { sendWorker() }
+        neighborWatchJob = scope.launch {
+            neighborsFlow.collect { rows ->
+                if (!active) return@collect
+                val hop1 = rows.filter { it.hops == 1 }.map { it.nodeId.identifier }.toSet()
+                sessions.toList().forEach { session ->
+                    val id = session.peerUuid ?: return@forEach
+                    if (id !in hop1) session.closeQuietly()
+                }
+            }
+        }
     }
 
     fun stop() {
@@ -131,10 +142,12 @@ class Data(
         upstreamWatchJob?.cancel()
         upstreamJob?.cancel()
         sendWorkerJob?.cancel()
+        neighborWatchJob?.cancel()
         goEndpointWatchJob = null
         upstreamWatchJob = null
         upstreamJob = null
         sendWorkerJob = null
+        neighborWatchJob = null
         upstreamSession?.closeQuietly()
         upstreamSession = null
         closeGoSessions()

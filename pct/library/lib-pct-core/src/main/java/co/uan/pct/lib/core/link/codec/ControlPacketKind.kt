@@ -15,6 +15,7 @@ enum class ControlPacketKind(val magic: ByteArray) {
     ANNOUNCE(byteArrayOf(0x50, 0x43, 0x54, 0x41)), // PCTA
     ANNOUNCE_OK(byteArrayOf(0x50, 0x43, 0x54, 0x4F)), // PCTO
     REACH(byteArrayOf(0x50, 0x43, 0x54, 0x52)), // PCTR
+    UNREACH(byteArrayOf(0x50, 0x43, 0x54, 0x55)), // PCTU
     ;
 
     companion object {
@@ -36,6 +37,7 @@ fun readControlPacket(input: InputStream): ControlPacket? {
             ControlPacket.AnnounceOk(id, ip)
         }
         ControlPacketKind.REACH -> readReachBody(input)
+        ControlPacketKind.UNREACH -> readUnreachBody(input)
         null -> null
     }
 }
@@ -73,6 +75,13 @@ private fun readReachBody(input: InputStream): ControlPacket.Reach? {
     val hops = hopsBuf[0].toInt() and 0xFF
     if (hops < 1) return null
     return ControlPacket.Reach(NodeId(uuid, name), hops)
+}
+
+@OptIn(ExperimentalUuidApi::class)
+private fun readUnreachBody(input: InputStream): ControlPacket.Unreach? {
+    val uuidBytes = readFully(input, UUID_BYTES) ?: return null
+    val uuid = runCatching { Uuid.fromByteArray(uuidBytes) }.getOrNull() ?: return null
+    return ControlPacket.Unreach(uuid)
 }
 
 private fun readIntBe(input: InputStream): Int? {

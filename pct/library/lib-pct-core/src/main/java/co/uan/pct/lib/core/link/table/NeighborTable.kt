@@ -48,6 +48,24 @@ class NeighborTable {
         }
     }
 
+    /** Quita la fila solo si su next-jump es [viaIpv4]. `true` si había y se fue. */
+    fun removeIfVia(uuid: Uuid, viaIpv4: String): Boolean = synchronized(lock) {
+        val old = byUuid[uuid] ?: return false
+        if (old.ipv4OnLink != viaIpv4) return false
+        byUuid.remove(uuid)
+        emitEntriesLocked()
+        return true
+    }
+
+    /** Hijo caído + destinos que solo se veían por esa arista. */
+    fun removeIfVia(viaIpv4: String): List<NeighborEntry> = synchronized(lock) {
+        val gone = byUuid.values.filter { it.ipv4OnLink == viaIpv4 }
+        if (gone.isEmpty()) return emptyList()
+        gone.forEach { byUuid.remove(it.nodeId.identifier) }
+        emitEntriesLocked()
+        return gone
+    }
+
     fun clear() {
         synchronized(lock) {
             byUuid.clear()
