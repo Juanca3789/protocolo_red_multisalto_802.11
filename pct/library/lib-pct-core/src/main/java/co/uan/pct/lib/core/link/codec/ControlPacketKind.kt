@@ -14,6 +14,7 @@ enum class ControlPacketKind(val magic: ByteArray) {
     PONG(byteArrayOf(0x50, 0x43, 0x54, 0x50)), // PCTP
     ANNOUNCE(byteArrayOf(0x50, 0x43, 0x54, 0x41)), // PCTA
     ANNOUNCE_OK(byteArrayOf(0x50, 0x43, 0x54, 0x4F)), // PCTO
+    REACH(byteArrayOf(0x50, 0x43, 0x54, 0x52)), // PCTR
     ;
 
     companion object {
@@ -34,6 +35,7 @@ fun readControlPacket(input: InputStream): ControlPacket? {
         ControlPacketKind.ANNOUNCE_OK -> readNodeBody(input)?.let { (id, ip) ->
             ControlPacket.AnnounceOk(id, ip)
         }
+        ControlPacketKind.REACH -> readReachBody(input)
         null -> null
     }
 }
@@ -56,6 +58,21 @@ private fun readNodeBody(input: InputStream): Pair<NodeId, String>? {
     val ipBytes = readFully(input, 4) ?: return null
     val ip = formatIpv4(ipBytes) ?: return null
     return NodeId(uuid, name) to ip
+}
+
+@OptIn(ExperimentalUuidApi::class)
+private fun readReachBody(input: InputStream): ControlPacket.Reach? {
+    val uuidBytes = readFully(input, UUID_BYTES) ?: return null
+    val uuid = runCatching { Uuid.fromByteArray(uuidBytes) }.getOrNull() ?: return null
+    val lenBuf = readFully(input, 2) ?: return null
+    val nameLen = ByteBuffer.wrap(lenBuf).order(ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF
+    if (nameLen !in 1..MAX_NAME_BYTES) return null
+    val nameBytes = readFully(input, nameLen) ?: return null
+    val name = runCatching { String(nameBytes, StandardCharsets.UTF_8) }.getOrNull() ?: return null
+    val hopsBuf = readFully(input, 1) ?: return null
+    val hops = hopsBuf[0].toInt() and 0xFF
+    if (hops < 1) return null
+    return ControlPacket.Reach(NodeId(uuid, name), hops)
 }
 
 private fun readIntBe(input: InputStream): Int? {

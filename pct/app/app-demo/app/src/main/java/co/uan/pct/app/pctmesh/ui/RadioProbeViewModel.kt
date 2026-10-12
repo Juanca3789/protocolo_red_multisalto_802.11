@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 
 data class NeighborRowUi(
+    val id: String,
     val shortId: String,
     val name: String,
     val ipv4OnLink: String,
@@ -65,6 +66,7 @@ class RadioProbeViewModel(
             childMacs = childMacs,
             neighborRows = neighborTable.map { entry ->
                 NeighborRowUi(
+                    id = entry.nodeId.identifier.toString(),
                     shortId = entry.nodeId.identifier.toString().take(8),
                     name = entry.nodeId.name,
                     ipv4OnLink = entry.ipv4OnLink,
@@ -100,13 +102,23 @@ class RadioProbeViewModel(
         }
     }
 
-    fun sendBroadcast(text: String) {
+    fun sendChat(text: String, destId: String?) {
         val body = text.trim()
         if (body.isEmpty()) return
         viewModelScope.launch {
-            runCatching {
-                protocol.send(protocol.nodeId, body.toByteArray(Charsets.UTF_8))
+            if (destId.isNullOrEmpty()) {
+                runCatching { protocol.broadcast(body.toByteArray(Charsets.UTF_8)) }
+                return@launch
             }
+            val dest = protocol.neighborTable.value
+                .firstOrNull { it.nodeId.identifier.toString() == destId }
+                ?: return@launch
+            runCatching { protocol.send(dest.nodeId, body.toByteArray(Charsets.UTF_8)) }
+            _broadcastMessages.value = _broadcastMessages.value + BroadcastMessageUi(
+                id = nextMessageId.getAndIncrement(),
+                senderName = "${protocol.nodeId.name} → ${dest.nodeId.name}",
+                body = body,
+            )
         }
     }
 

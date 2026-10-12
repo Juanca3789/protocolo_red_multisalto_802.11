@@ -10,7 +10,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,19 +29,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun L3BroadcastScreen(
     viewModel: RadioProbeViewModel,
     modifier: Modifier = Modifier,
 ) {
     val messages by viewModel.broadcastMessages.collectAsStateWithLifecycle()
+    val ui by viewModel.uiState.collectAsStateWithLifecycle()
     var draft by rememberSaveable { mutableStateOf("") }
+    var destId by rememberSaveable { mutableStateOf("") }
+    var destMenuOpen by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
+    }
+    LaunchedEffect(ui.neighborRows.map { it.id }) {
+        if (destId.isNotEmpty() && ui.neighborRows.none { it.id == destId }) {
+            destId = ""
+        }
+    }
+
+    val destLabel = if (destId.isEmpty()) {
+        "Todos"
+    } else {
+        ui.neighborRows.firstOrNull { it.id == destId }?.name ?: "Todos"
     }
 
     Column(
@@ -46,7 +66,7 @@ fun L3BroadcastScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "Broadcast",
+            text = "Mensajes",
             style = MaterialTheme.typography.titleMedium,
         )
         LazyColumn(
@@ -69,6 +89,43 @@ fun L3BroadcastScreen(
                 }
             }
         }
+        ExposedDropdownMenuBox(
+            expanded = destMenuOpen,
+            onExpandedChange = { destMenuOpen = it },
+        ) {
+            OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                value = destLabel,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                label = { Text("Para") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = destMenuOpen) },
+            )
+            ExposedDropdownMenu(
+                expanded = destMenuOpen,
+                onDismissRequest = { destMenuOpen = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Todos") },
+                    onClick = {
+                        destId = ""
+                        destMenuOpen = false
+                    },
+                )
+                ui.neighborRows.forEach { row ->
+                    DropdownMenuItem(
+                        text = { Text(row.name) },
+                        onClick = {
+                            destId = row.id
+                            destMenuOpen = false
+                        },
+                    )
+                }
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -83,7 +140,7 @@ fun L3BroadcastScreen(
             )
             Button(
                 onClick = {
-                    viewModel.sendBroadcast(draft)
+                    viewModel.sendChat(draft, destId.ifEmpty { null })
                     draft = ""
                 },
                 enabled = draft.isNotBlank(),

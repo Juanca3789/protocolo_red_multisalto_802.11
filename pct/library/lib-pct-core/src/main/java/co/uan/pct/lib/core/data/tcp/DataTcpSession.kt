@@ -31,6 +31,7 @@ internal class DataTcpSession(
     private val mode: Mode,
     private val acceptPeer: (Uuid) -> Boolean,
     private val onBcast: (DataTcpSession, DataPacket.Bcast) -> Unit,
+    private val onUnicast: (DataTcpSession, DataPacket.Unicast) -> Unit,
     private val onClosed: ((DataTcpSession) -> Unit)? = null,
 ) {
     enum class Mode {
@@ -123,6 +124,18 @@ internal class DataTcpSession(
                         LOG_TAG,
                         Log.DEBUG,
                         "recv ack msg=${packet.msgId} origin=${packet.originUuid} peer=$peerUuid",
+                    )
+                    is DataPacket.Unicast -> {
+                        if (peerUuid == null) {
+                            PctLog.event("data: unicast de sesión sin hello, cierro")
+                            break
+                        }
+                        onUnicast(this, packet)
+                    }
+                    is DataPacket.UnicastRecv -> PctLog.emit(
+                        LOG_TAG,
+                        Log.DEBUG,
+                        "unicast ack msg=${packet.msgId} origin=${packet.originUuid} peer=$peerUuid",
                     )
                 }
             }

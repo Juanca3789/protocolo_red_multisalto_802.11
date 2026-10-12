@@ -27,7 +27,7 @@ L1 encontró un `Network` cuya `interfaceName` coincide con `WifiP2pGroup.getInt
 | **LK-02** | Listen no se recupera cuando la IP aparece | `Link` marcaba `goListenBoundNetwork = goNetwork` aunque `openGoControlListen` fallara; el `combine(role, goNetwork)` no se re-disparaba. | Hijo agota `ANNOUNCE_OK_WAIT` / `PONG_WAIT` (8 s). | Corregido: el endpoint se marca como atado solo dentro de `onSuccess`; L1 re-evalúa cada ciclo. |
 | **LK-03** | `ServerSocket.getFileDescriptor` no existe | Reflexión sobre API privada para `Network.bindSocket(FileDescriptor)`. No es portable entre OEM/ART. | Listen roto. | Corregido: sin reflexión; ver sección 4. |
 | **LK-04** | Lógica de IPv4 duplicada en Radio y Link | Link volvía a leer `LinkProperties` del `Network` que L1 ya había inspeccionado. | Logs incoherentes, carreras. | Corregido: Link no consulta `ConnectivityManager` para el GO; solo usa el endpoint. |
-| **LK-05** | Upstream usa gateway IPv4 `192.168.49.1` | `StaParentNetwork.gatewayForControlTcp` + `Link.maintainUpstreamOverSta`. | En **BRIDGE** el hijo también es `.1`; PC-08: el TCP al padre cae a `lo`. | Corregido: upstream a `fe80::` EUI-64 del BSSID con ámbito de la interfaz STA; IPv4 solo fallback con log `link: upstream ipv4 fallback`. |
+| **LK-05** | Upstream usa gateway IPv4 `192.168.49.1` | `StaParentNetwork` + `Link.maintainUpstreamOverSta`. | En **BRIDGE** el hijo también es `.1`; PC-08: el TCP cae a `lo`. | Mitigado: destino principal `fe80::` (EUI-64 del BSSID del padre); IPv4 solo fallback. |
 | **LK-06** | Spec 14 dice fe80, implementación hacía IPv4 | Deuda entre doc y código. | ANNOUNCE_OK intermitente a 2+ saltos. | Corregido junto con LK-05; el padre escucha también en su fe80 de la interfaz GO. |
 | **LK-07** | Detección del GO cada 3 s | `GO_OBSERVE_INTERVAL_MS` fijo. | Ventana sin listen; el hijo conecta antes de que el padre escuche. | Mitigado: sondeo a 1 s mientras no haya endpoint; 3 s una vez publicado. |
 | **LK-08** | `go: endpoint pendiente iface=p2p-p2p0-0 sin network` en bucle | `ConnectivityManager.allNetworks` **no incluye** la interfaz P2P en algunos OEM (observado: `p2p-p2p0-0`). Ningún `Network` que emparejar. | Sin endpoint, sin listen. | Corregido: las direcciones salen de `NetworkInterface.getByName(iface)` (kernel), que siempre existe cuando el GO está arriba. El `Network` de CM es opcional (`GoControlEndpoint.network: Network?`); el bind es por dirección y no lo necesita. |
@@ -53,7 +53,7 @@ Link  (:8765) y Data (:8766)
 El accept de `:8766` **no** se casa con `ipv4OnLink` de la tabla (el hijo llega por fe80). La sesión de datos se identifica con HELLO (UUID) cuando el vecino ya está en tabla.
 ```
 
-- `GoControlEndpoint(network?, iface, hostIpv4, linkLocalIpv6?)` vive en `radio/`.
+- `GoControlEndpoint(network?, iface, hostIpv4, linkLocalIpv6)` vive en `radio/`.
 - El flow es `null` mientras el GO no tenga IPv4, cuando `requestGroupInfo` dice que no somos GO, y en `tearDown`.
 - Link marca el endpoint como atado solo si el `bind` tuvo éxito. Si falla, el siguiente tick de L1 (1 s) vuelve a emitir y Link reintenta.
 

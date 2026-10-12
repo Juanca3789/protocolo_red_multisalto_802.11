@@ -158,10 +158,16 @@ class MultiHopProtocol(
         return data.pop()
     }
 
-    /** Broadcast v1: [destination] se ignora; el mensaje se repite por todo el árbol. */
+    /** Broadcast greedy (solo hop 1). */
+    suspend fun broadcast(payload: ByteArray) {
+        check(::data.isInitialized) { "attach(context) first" }
+        data.broadcast(payload)
+    }
+
+    /** Unicast: next-jump según la tabla; hop a hop con ACK al ingreso. */
     suspend fun send(destination: NodeId, payload: ByteArray) {
         check(::data.isInitialized) { "attach(context) first" }
-        data.send(payload)
+        data.send(destination, payload)
     }
 
     private fun resetSessionState() {

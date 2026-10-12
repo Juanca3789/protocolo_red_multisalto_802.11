@@ -44,6 +44,7 @@ Binario big-endian. Cada mensaje empieza por un magic de 4 ASCII. **No hay heade
 | `PCTP` | PONG | `seq` int32 |
 | `PCTA` | ANNOUNCE | `uuid` 16 · `name_len` uint16 · `name` UTF-8 · `ipv4` 4 |
 | `PCTO` | ANNOUNCE_OK | igual que ANNOUNCE |
+| `PCTR` | REACH | `uuid` · `name` · `hops_reportero` uint8 (sin IPv4 del destino) |
 
 `name_len` ∈ 1..512. IPv4 es la del anunciante **en esa arista** (STA del hijo, `.1` del GO del padre).
 
@@ -53,7 +54,8 @@ Binario big-endian. Cada mensaje empieza por un magic de 4 ASCII. **No hay heade
 2. Hijo: ANNOUNCE (`localNodeId`, IPv4 STA).
 3. Padre: registra al hijo con `hops=1`, responde ANNOUNCE_OK con su `nodeId` y `goHostIpv4`.
 4. Hijo: registra al padre con `hops=1`.
-5. Keep-alive: PING cada 5 s; si PONG no llega en 8 s, se cierra el socket y el hijo reintenta.
+5. Padre: volcado REACH del resto de la tabla al hijo, y REACH del hijo a los demás hop 1.
+6. Keep-alive: PING cada 5 s; si PONG no llega en 8 s, se cierra el socket y el hijo reintenta.
 
 Timeout de lectura del socket: 15 s. Connect: 15 s. Reintento: 2 s.
 
@@ -71,7 +73,7 @@ Un frame que no sea de esos cuatro se descarta (el lector corta la sesión).
 | `ipv4OnLink` | IPv4 de esa arista (la que trajo ANNOUNCE / OK) |
 | `hops` | ≥ 1; hoy siempre 1 |
 
-No hay `next_hop`, `path_seq` ni entradas >1 salto. Eso es REACH, todavía no.
+Hop > 1 llega por REACH: la IP de esa fila es el next-jump, no la del destino. No hay columna extra. Bajas al desconectar: todavía no.
 
 Vista hacia L3: lista de vecinos directos. L3 **no** usa `ipv4OnLink` para conectar (el accept de `:8766` se identifica con HELLO por UUID; casar por IPv4 rompe con fe80).
 

@@ -11,10 +11,10 @@ El framing `PCT1` de 12 bytes y el DATA unicast con `dst_nid` de [06-tcp-message
 
 | Canal | Puerto | Magic | Capa |
 |---|---|---|---|
-| Control | 8765 | 4 ASCII distintos por tipo (`PCTG` `PCTP` `PCTA` `PCTO`) | L2 |
+| Control | 8765 | 4 ASCII distintos por tipo (`PCTG` `PCTP` `PCTA` `PCTO` `PCTR`) | L2 |
 | Datos | 8766 | `PCTD` (4 B) + `msg_type` (1 B, byte 5) | L3 |
 
-No compartir socket. Desde el byte 5 del canal datos ya se sabe qué cuerpo leer; no hay versión ni `dest_uuid`.
+No compartir socket. Desde el byte 5 del canal datos ya se sabe qué cuerpo leer; no hay versión. El `dest_uuid` solo va en UNICAST.
 
 Un frame de datos en `:8765` o un magic de control en `:8766` → el lector corta la sesión.
 
@@ -41,6 +41,18 @@ Sin header común. El magic de 4 bytes **es** el tipo.
 | 22 | n | `name` UTF-8 |
 | 22+n | 4 | IPv4 de esta arista |
 
+### REACH (`PCTR`)
+
+| Offset | Tamaño | Campo |
+|---|---|---|
+| 0 | 4 | magic |
+| 4 | 16 | `node_uuid` del destino |
+| 20 | 2 | `name_len` |
+| 22 | n | `name` UTF-8 |
+| 22+n | 1 | `hops_reportero` uint8 |
+
+Sin IPv4 del destino. El receptor usa la del vecino de ingreso como next-jump y guarda `hops_reportero + 1`. Detalle: [18-unicast-reach.md](18-unicast-reach.md).
+
 ---
 
 ## 3. Datos `:8766`
@@ -52,10 +64,12 @@ Cabecera: `PCTD` + `msg_type`.
 | `0x00` | HELLO | `node_uuid` 16 |
 | `0x01` | BCAST | `msg_id` uint64 · `origin_uuid` 16 · `ts_ms` int64 · `payload_len` uint16 · `payload` |
 | `0x02` | BCAST_RECV | `msg_id` uint64 · `origin_uuid` 16 |
+| `0x03` | UNICAST | `msg_id` · `origin_uuid` · `dest_uuid` · `ts_ms` · `payload_len` · `payload` |
+| `0x04` | UNICAST_RECV | `msg_id` uint64 · `origin_uuid` 16 |
 
 `payload_len` máximo `0xFFFF`. `ts_ms` es `System.currentTimeMillis()` del emisor (reloj del teléfono); la cola de `send`/`pop` es FIFO, no se ordena por ese campo.
 
-HELLO no es tráfico de usuario: identifica la sesión para no casar el accept por IPv4 (PC-08 / fe80). BCAST no lleva destino. BCAST_RECV confirma al vecino de ingreso el `(origin, msg_id)`.
+HELLO identifica la sesión (no casar accept por IPv4). BCAST no lleva destino y solo se fan-out a hop 1. UNICAST lleva `dest_uuid`; se escribe en la sesión hop 1 cuya IP es el next-jump de la fila. BCAST_RECV / UNICAST_RECV confirman al vecino de ingreso; no hay ACK extremo a extremo.
 
 ---
 

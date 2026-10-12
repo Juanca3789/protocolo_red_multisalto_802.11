@@ -4,7 +4,7 @@
 **Código:** `data/Data.kt`, `data/tcp/DataTcpSession.kt`, `data/codec/`, `data/SeenCache.kt`.  
 **Prerequisito:** [14-link-layer.md](14-link-layer.md). Wire: [16-packet-envelope.md](16-packet-envelope.md).
 
-El reenvío unicast por tabla (`MeshSocket.send(destino)` + `hop_limit` + `path_trace`) es diseño del Incremento 1 / [07-routing-and-topology.md](07-routing-and-topology.md). **No corre.** Hoy L3 no mira para quién es el mensaje.
+Broadcast greedy: solo hop 1. Unicast: `send(dest)` mira la fila, escribe en esa sesión hop 1 y se desliga ([18-unicast-reach.md](18-unicast-reach.md)). El `Forwarder` del Incremento 1 no corre.
 
 ---
 
@@ -16,10 +16,11 @@ API hacia la app (`MultiHopProtocol`):
 
 | Método | Qué hace |
 |---|---|
-| `send(destination, payload)` | En v1 **ignora** `destination`. Encola FIFO y emite un BCAST. |
-| `pop()` | `(origen: NodeId, payload)`. FIFO. El timestamp va en el frame, no ordena la cola. |
+| `broadcast(payload)` | Fan-out greedy a hop 1. |
+| `send(destination, payload)` | Unicast: IP de la fila → sesión hop 1; ACK solo al ingreso. |
+| `pop()` | `(origen: NodeId, payload)`. FIFO. |
 
-El nombre del origen para la UI sale de la tabla L2 (caché en la demo). A más de un salto el paquete no lleva nombre: se muestra el UUID corto.
+El nombre del origen sale de la tabla L2 (también destinos REACH).
 
 ---
 
@@ -70,6 +71,5 @@ Dos hijos de A: el mensaje de uno llega al otro porque A lo repele hacia todos m
 
 ## 5. Qué queda fuera (siguiente)
 
-- Unicast / `dest_uuid` / REACH en `:8765`.
-- `hop_limit` y `path_trace`.
-- Mensaje de control `DATA_CHANNEL_OPEN` (el canal se abre por tabla + HELLO).
+- Borrar rutas al caer un vecino.
+- `hop_limit` / `path_trace` (no hace falta: unicast es un salto y se desliga).

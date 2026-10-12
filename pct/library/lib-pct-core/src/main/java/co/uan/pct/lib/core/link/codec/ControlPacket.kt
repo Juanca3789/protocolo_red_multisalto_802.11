@@ -46,9 +46,37 @@ sealed class ControlPacket {
             encodeNodeBody(ControlPacketKind.ANNOUNCE_OK, nodeId, ipv4OnLink)
     }
 
+    /** Aviso de destino remoto. Sin IPv4 del destino: el receptor usa la del vecino de ingreso. */
+    data class Reach(
+        val nodeId: NodeId,
+        val hopsFromReporter: Int,
+    ) : ControlPacket() {
+        init {
+            require(hopsFromReporter in 1..255) { "hopsFromReporter out of range" }
+        }
+
+        override fun toWireBytes(): ByteArray {
+            val nameBytes = nodeId.name.toByteArray(StandardCharsets.UTF_8)
+            require(nameBytes.size in 1..MAX_NAME_BYTES) { "name length out of range" }
+            val uuidBytes = nodeId.identifier.toByteArray()
+            require(uuidBytes.size == UUID_BYTES)
+            return ByteBuffer.allocate(ControlPacketKind.REACH.magic.size + UUID_BYTES + 2 + nameBytes.size + 1)
+                .order(ByteOrder.BIG_ENDIAN)
+                .apply {
+                    put(ControlPacketKind.REACH.magic)
+                    put(uuidBytes)
+                    putShort(nameBytes.size.toShort())
+                    put(nameBytes)
+                    put(hopsFromReporter.toByte())
+                }
+                .array()
+        }
+    }
+
     internal companion object {
-        private const val UUID_BYTES = 16
-        private const val MAX_NAME_BYTES = 512
+
+        const val UUID_BYTES = 16
+        const val MAX_NAME_BYTES = 512
 
         fun encodeNodeBody(kind: ControlPacketKind, nodeId: NodeId, ipv4: String): ByteArray {
             val nameBytes = nodeId.name.toByteArray(StandardCharsets.UTF_8)

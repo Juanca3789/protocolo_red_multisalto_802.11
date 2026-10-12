@@ -242,7 +242,6 @@ class Radio(
             logEndpointPending("iface=$iface sin ipv4 addrs=$count")
             return null
         }
-        // Ámbito de interfaz garantizado para poder hacer bind sobre la fe80.
         val scoped = fe80?.let { addr ->
             runCatching { Inet6Address.getByAddress(null, addr.address, nif) }.getOrNull()
         }

@@ -41,4 +41,19 @@ class DataCodecTest {
         assertEquals(origin, decoded.originUuid)
         assertTrue(decoded.toWireBytes()[4] == DataPacketKind.BCAST_RECV.code)
     }
+
+    @Test
+    fun roundTrip_unicast() {
+        val origin = Uuid.random()
+        val dest = Uuid.random()
+        val payload = "hola".toByteArray()
+        val frame = DataPacket.Unicast(9, origin, dest, 42L, payload).toWireBytes()
+        assertEquals(DataPacketKind.UNICAST.code, frame[4])
+        val decoded = readDataPacket(frame) as DataPacket.Unicast
+        assertEquals(9, decoded.msgId)
+        assertEquals(origin, decoded.originUuid)
+        assertEquals(dest, decoded.destUuid)
+        assertEquals(42L, decoded.tsMs)
+        assertArrayEquals(payload, decoded.payload)
+    }
 }

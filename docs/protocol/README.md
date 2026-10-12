@@ -4,7 +4,7 @@ Documentación formal del **Incremento 1**: análisis y diseño de arquitectura 
 
 **Proyecto de grado:** Protocolo distribuido de control y reconfiguración topológica con continuidad lógica para redes multisalto sobre Wi-Fi convencional.
 
-**Versión del spec (lo que corre):** `0.3.0` — `lib-pct-core` 2.3.0, canales TCP `:8765` (control) y `:8766` (broadcast).  
+**Versión del spec (lo que corre):** `0.3.0` — `lib-pct-core` 2.3.0, `:8765` (ANNOUNCE + REACH) y `:8766` (BCAST + UNICAST).  
 El Incremento 1 (`0.1.0-pre`, `PCT1`, `_pct-seek`, JOIN_*) queda como diseño previo; no es el wire actual.
 
 **Autores:** Juan Carlos Clavijo Triviño, Brandon Stiven Ganzo Murcia
@@ -18,6 +18,7 @@ El Incremento 1 (`0.1.0-pre`, `PCT1`, `_pct-seek`, JOIN_*) queda como diseño pr
 | Modelo por capas | [13-layer-model.md](13-layer-model.md) |
 | L2: TCP `:8765`, ANNOUNCE, tabla 1 salto | [14-link-layer.md](14-link-layer.md) |
 | L3: broadcast greedy `:8766` | [15-network-layer.md](15-network-layer.md) |
+| Unicast + aviso destinos (diseño) | [18-unicast-reach.md](18-unicast-reach.md) |
 | Wire control / datos | [16-packet-envelope.md](16-packet-envelope.md) |
 | Roadmap prototipo → implementación | [17-implementation-roadmap.md](17-implementation-roadmap.md) |
 | Bugs link en Android (LK-xx) | [link-android-known-issues.md](link-android-known-issues.md) |
@@ -53,8 +54,8 @@ El Incremento 1 (`0.1.0-pre`, `PCT1`, `_pct-seek`, JOIN_*) queda como diseño pr
 3. **Enlaces padre-hijo** vía asociación **STA legacy** al SSID/PSK del GO padre.
 4. **Identidad** por `node_id` (UUID); IPv4 / `fe80` solo como transporte hop-a-hop dentro de L1/L2.
 5. **Unión actual:** browse `_pct-ctrl` (instance-v1) → STA → GO. `_pct-seek` / `JOIN_OFFER` es Incremento 1, no implementado.
-6. **Tabla L2** de vecinos a 1 salto (ANNOUNCE). REACH / destinos >1 salto, no.
-7. **Dos TCP:** `:8765` (PING/ANNOUNCE) y `:8766` (HELLO + BCAST greedy). Las IP no salen de L2.
+6. **Tabla L2:** hop 1 por ANNOUNCE; hop > 1 por REACH (IP = next-jump).
+7. **Dos TCP:** `:8765` (PING/ANNOUNCE/REACH) y `:8766` (HELLO + BCAST hop 1 + UNICAST). Las IP no salen de L2.
 8. **Continuidad lógica** (`epoch`, `session_epoch`) sigue en el diseño del Incremento 1; esta build no la usa.
 
 ---

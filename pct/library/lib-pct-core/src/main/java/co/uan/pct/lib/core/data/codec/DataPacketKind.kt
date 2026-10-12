@@ -8,12 +8,14 @@ import kotlin.uuid.Uuid
 
 /**
  * Tipos de paquete de datos en :8766. Magic común `PCTD` (4 bytes) + `msg_type` en el byte 5.
- * Desde el byte 5 ya se sabe qué cuerpo esperar; no hay versión ni `dest_uuid` (broadcast).
+ * Desde el byte 5 ya se sabe qué cuerpo esperar; no hay versión. `dest_uuid` solo en UNICAST.
  */
 enum class DataPacketKind(val code: Byte) {
     HELLO(0x00),
     BCAST(0x01),
     BCAST_RECV(0x02),
+    UNICAST(0x03),
+    UNICAST_RECV(0x04),
     ;
 
     companion object {
@@ -36,6 +38,12 @@ fun readDataPacket(input: InputStream): DataPacket? {
             val origin = readUuid(input) ?: return null
             DataPacket.BcastRecv(msgId, origin)
         }
+        DataPacketKind.UNICAST -> readUnicastBody(input)
+        DataPacketKind.UNICAST_RECV -> {
+            val msgId = readLongBe(input) ?: return null
+            val origin = readUuid(input) ?: return null
+            DataPacket.UnicastRecv(msgId, origin)
+        }
         null -> null
     }
 }
@@ -44,6 +52,18 @@ fun readDataPacket(frame: ByteArray): DataPacket? =
     readDataPacket(frame.inputStream())
 
 private const val UUID_BYTES = 16
+
+@OptIn(ExperimentalUuidApi::class)
+private fun readUnicastBody(input: InputStream): DataPacket.Unicast? {
+    val msgId = readLongBe(input) ?: return null
+    val origin = readUuid(input) ?: return null
+    val dest = readUuid(input) ?: return null
+    val tsMs = readLongBe(input) ?: return null
+    val lenBuf = readFully(input, 2) ?: return null
+    val len = ByteBuffer.wrap(lenBuf).order(ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF
+    val payload = if (len == 0) ByteArray(0) else readFully(input, len) ?: return null
+    return DataPacket.Unicast(msgId, origin, dest, tsMs, payload)
+}
 
 @OptIn(ExperimentalUuidApi::class)
 private fun readBcastBody(input: InputStream): DataPacket.Bcast? {

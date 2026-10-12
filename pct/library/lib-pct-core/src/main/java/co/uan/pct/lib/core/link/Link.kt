@@ -3,6 +3,7 @@ package co.uan.pct.lib.core.link
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
+import co.uan.pct.lib.core.link.codec.ControlPacket
 import co.uan.pct.lib.core.link.network.StaParentNetwork
 import co.uan.pct.lib.core.link.table.NeighborEntry
 import co.uan.pct.lib.core.link.table.NeighborTable
@@ -18,6 +19,7 @@ import java.net.Socket
 import java.util.Collections
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -165,6 +167,8 @@ class Link(
             neighborTable = neighborTable,
             mode = ControlTcpSession.Mode.GO_INBOUND,
             goHostIpv4 = { goEndpointFlow.value?.hostIpv4 },
+            onChildAnnounced = { s -> onChildAnnounced(s) },
+            onReachBetter = { ingress, dest, hops -> floodReach(except = ingress, dest = dest, hopsFromHere = hops) },
             onClosed = { sessionRef?.let { goSessions.remove(it) } },
         )
         sessionRef = session
@@ -220,6 +224,7 @@ class Link(
                 neighborTable = neighborTable,
                 mode = ControlTcpSession.Mode.UPSTREAM,
                 goHostIpv4 = { goEndpointFlow.value?.hostIpv4 },
+                onReachBetter = { ingress, dest, hops -> floodReach(except = ingress, dest = dest, hopsFromHere = hops) },
             )
             upstreamSession = session
             session.start()
@@ -246,6 +251,35 @@ class Link(
                 upstreamSession = null
             }
         }
+    }
+
+    private fun onChildAnnounced(childSession: ControlTcpSession) {
+        val child = childSession.peerNodeId ?: return
+        dumpTableTo(childSession, except = child.identifier)
+        floodReach(except = childSession, dest = child, hopsFromHere = 1)
+    }
+
+    private fun dumpTableTo(session: ControlTcpSession, except: Uuid) {
+        for (entry in neighborTable.entries.value) {
+            if (entry.nodeId.identifier == except) continue
+            session.send(ControlPacket.Reach(entry.nodeId, entry.hops).toWireBytes())
+        }
+    }
+
+    private fun floodReach(except: ControlTcpSession?, dest: NodeId, hopsFromHere: Int) {
+        val frame = ControlPacket.Reach(dest, hopsFromHere).toWireBytes()
+        for (session in controlSessions()) {
+            if (session === except || !session.isIdentified) continue
+            if (session.peerUuid == dest.identifier) continue
+            session.send(frame)
+        }
+    }
+
+    private fun controlSessions(): List<ControlTcpSession> {
+        val out = mutableListOf<ControlTcpSession>()
+        upstreamSession?.let { out.add(it) }
+        out.addAll(goSessions)
+        return out
     }
 
     private companion object {

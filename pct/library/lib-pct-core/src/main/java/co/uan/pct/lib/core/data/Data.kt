@@ -56,7 +56,7 @@ class Data(
         context.applicationContext.getSystemService(ConnectivityManager::class.java)
 
     private var incoming = Channel<Pair<NodeId, ByteArray>>(capacity = Channel.UNLIMITED)
-    private var sendQueue = Channel<ByteArray>(capacity = Channel.UNLIMITED)
+    private var sendQueue = Channel<Outgoing>(capacity = Channel.UNLIMITED)
     private val seen = SeenCache()
     private val nextMsgId = AtomicLong(1)
 
@@ -136,10 +136,16 @@ class Data(
         seen.clear()
     }
 
-    /** FIFO clásico: el orden de salida es el orden en que la app llamó a [send]. */
-    suspend fun send(payload: ByteArray) {
+    /** Broadcast greedy: solo vecinos hop 1. */
+    suspend fun broadcast(payload: ByteArray) {
         require(payload.size <= DataPacket.MAX_PAYLOAD_BYTES) { "payload too large" }
-        sendQueue.send(payload)
+        sendQueue.send(Outgoing.Bcast(payload))
+    }
+
+    /** Unicast: next-jump = IP de la fila; se manda a esa sesión hop 1 y se desliga. */
+    suspend fun send(destination: NodeId, payload: ByteArray) {
+        require(payload.size <= DataPacket.MAX_PAYLOAD_BYTES) { "payload too large" }
+        sendQueue.send(Outgoing.Uni(destination, payload))
     }
 
     /** `(origen, payload)`; el nombre del origen sale de la tabla L2 si es vecino, si no va vacío. */
@@ -149,17 +155,41 @@ class Data(
 
     private suspend fun sendWorker() {
         while (scope.isActive) {
-            val payload = runCatching { sendQueue.receive() }.getOrNull() ?: break
-            val bcast = DataPacket.Bcast(
-                msgId = nextMsgId.getAndIncrement(),
-                originUuid = localNodeId.identifier,
-                tsMs = System.currentTimeMillis(),
-                payload = payload,
-            )
-            seen.markIfNew(bcast.originUuid, bcast.msgId)
-            deliver(bcast)
-            val fanout = fanout(bcast.toWireBytes(), except = null)
-            PctLog.event("data: bcast local msg=${bcast.msgId} bytes=${payload.size} fanout=$fanout")
+            when (val out = runCatching { sendQueue.receive() }.getOrNull() ?: break) {
+                is Outgoing.Bcast -> emitLocalBcast(out.payload)
+                is Outgoing.Uni -> emitLocalUnicast(out.dest, out.payload)
+            }
+        }
+    }
+
+    private fun emitLocalBcast(payload: ByteArray) {
+        val bcast = DataPacket.Bcast(
+            msgId = nextMsgId.getAndIncrement(),
+            originUuid = localNodeId.identifier,
+            tsMs = System.currentTimeMillis(),
+            payload = payload,
+        )
+        seen.markIfNew(bcast.originUuid, bcast.msgId)
+        deliver(localNodeId, bcast.payload)
+        val fanout = fanoutHop1(bcast.toWireBytes(), except = null)
+        PctLog.event("data: bcast local msg=${bcast.msgId} bytes=${payload.size} fanout=$fanout")
+    }
+
+    private fun emitLocalUnicast(dest: NodeId, payload: ByteArray) {
+        if (dest.identifier == localNodeId.identifier) {
+            incoming.trySend(localNodeId to payload)
+            return
+        }
+        val uni = DataPacket.Unicast(
+            msgId = nextMsgId.getAndIncrement(),
+            originUuid = localNodeId.identifier,
+            destUuid = dest.identifier,
+            tsMs = System.currentTimeMillis(),
+            payload = payload,
+        )
+        seen.markIfNew(uni.originUuid, uni.msgId)
+        if (!forwardUnicast(uni, except = null)) {
+            PctLog.event("data: unicast sin ruta dest=${dest.name} id=${dest.identifier}")
         }
     }
 
@@ -171,27 +201,62 @@ class Data(
             return
         }
         ingress.enqueue(DataPacket.BcastRecv(bcast.msgId, bcast.originUuid).toWireBytes())
-        deliver(bcast)
-        val fanout = fanout(bcast.toWireBytes(), except = ingress)
+        deliver(NodeId(bcast.originUuid, nameFor(bcast.originUuid)), bcast.payload)
+        val fanout = fanoutHop1(bcast.toWireBytes(), except = ingress)
         PctLog.event(
             "data: bcast relay msg=${bcast.msgId} origin=${bcast.originUuid} " +
                 "from=${ingress.peerUuid} fanout=$fanout",
         )
     }
 
-    private fun deliver(bcast: DataPacket.Bcast) {
-        incoming.trySend(NodeId(bcast.originUuid, nameFor(bcast.originUuid)) to bcast.payload)
+    private fun onUnicast(ingress: DataTcpSession, uni: DataPacket.Unicast) {
+        if (!seen.markIfNew(uni.originUuid, uni.msgId)) {
+            PctLog.emit(LOG_TAG, Log.DEBUG, "dedup drop uni msg=${uni.msgId} origin=${uni.originUuid}")
+            return
+        }
+        ingress.enqueue(DataPacket.UnicastRecv(uni.msgId, uni.originUuid).toWireBytes())
+        if (uni.destUuid == localNodeId.identifier) {
+            deliver(NodeId(uni.originUuid, nameFor(uni.originUuid)), uni.payload)
+            PctLog.event("data: unicast deliver msg=${uni.msgId} from=${uni.originUuid}")
+            return
+        }
+        if (!forwardUnicast(uni, except = ingress)) {
+            PctLog.event("data: unicast sin next-jump dest=${uni.destUuid}")
+        }
     }
 
-    private fun fanout(frame: ByteArray, except: DataTcpSession?): Int {
+    private fun deliver(origin: NodeId, payload: ByteArray) {
+        incoming.trySend(origin to payload)
+    }
+
+    /** Broadcast: recorre la tabla y solo escribe a hop == 1. */
+    private fun fanoutHop1(frame: ByteArray, except: DataTcpSession?): Int {
         var count = 0
-        for (session in sessions.toList()) {
-            if (session === except || !session.isIdentified) continue
+        for (entry in neighborsFlow.value) {
+            if (entry.hops != 1) continue
+            val session = sessionForPeer(entry.nodeId.identifier) ?: continue
+            if (session === except) continue
             session.enqueue(frame)
             count++
         }
         return count
     }
+
+    private fun forwardUnicast(uni: DataPacket.Unicast, except: DataTcpSession?): Boolean {
+        val row = neighborsFlow.value.firstOrNull { it.nodeId.identifier == uni.destUuid } ?: return false
+        val hop1 = neighborsFlow.value.firstOrNull { it.hops == 1 && it.ipv4OnLink == row.ipv4OnLink }
+            ?: return false
+        val session = sessionForPeer(hop1.nodeId.identifier) ?: return false
+        if (session === except) return false
+        session.enqueue(uni.toWireBytes())
+        PctLog.event(
+            "data: unicast next=${hop1.nodeId.name} dest=${uni.destUuid} hops=${row.hops}",
+        )
+        return true
+    }
+
+    private fun sessionForPeer(uuid: Uuid): DataTcpSession? =
+        sessions.toList().firstOrNull { it.isIdentified && it.peerUuid == uuid }
 
     private fun nameFor(uuid: Uuid): String {
         if (uuid == localNodeId.identifier) return localNodeId.name
@@ -200,7 +265,7 @@ class Data(
     }
 
     private fun isNeighbor(uuid: Uuid): Boolean =
-        neighborsFlow.value.any { it.nodeId.identifier == uuid }
+        neighborsFlow.value.any { it.nodeId.identifier == uuid && it.hops == 1 }
 
     // ---- GO: escucha :8766 ----
 
@@ -244,6 +309,7 @@ class Data(
                 mode = DataTcpSession.Mode.GO_INBOUND,
                 acceptPeer = ::isNeighbor,
                 onBcast = ::onBcast,
+                onUnicast = ::onUnicast,
                 onClosed = { sessions.remove(it) },
             )
             sessions.add(session)
@@ -260,7 +326,6 @@ class Data(
     // ---- hijo: upstream :8766 por la STA ----
 
     private suspend fun maintainUpstreamOverSta(staNetwork: Network, parentBssid: String?) {
-        var fallbackLogged = false
         while (
             active &&
             scope.isActive &&
@@ -273,10 +338,6 @@ class Data(
                 delay(RETRY_DELAY)
                 continue
             }
-            if (fe80 == null && !fallbackLogged) {
-                fallbackLogged = true
-                PctLog.event("data: upstream ipv4 fallback gateway=${target.hostAddress}")
-            }
             val connected = runCatching {
                 Socket().apply {
                     staNetwork.bindSocket(this)
@@ -288,6 +349,7 @@ class Data(
                 delay(RETRY_DELAY)
                 continue
             }
+            PctLog.event("data: upstream ${if (fe80 != null) "fe80" else "ipv4"} dst=${target.hostAddress}")
             val session = DataTcpSession(
                 socket = connected,
                 scope = scope,
@@ -295,6 +357,7 @@ class Data(
                 mode = DataTcpSession.Mode.UPSTREAM,
                 acceptPeer = ::isNeighbor,
                 onBcast = ::onBcast,
+                onUnicast = ::onUnicast,
                 onClosed = { sessions.remove(it) },
             )
             upstreamSession = session
@@ -308,7 +371,7 @@ class Data(
                 delay(RETRY_DELAY)
                 continue
             }
-            PctLog.event("data: upstream listo dst=${target.hostAddress}")
+            PctLog.event("data: upstream listo dst=${connected.remoteSocketAddress}")
             while (
                 active &&
                 scope.isActive &&
@@ -324,6 +387,11 @@ class Data(
                 upstreamSession = null
             }
         }
+    }
+
+    private sealed class Outgoing {
+        class Bcast(val payload: ByteArray) : Outgoing()
+        class Uni(val dest: NodeId, val payload: ByteArray) : Outgoing()
     }
 
     private data class UpstreamGate(

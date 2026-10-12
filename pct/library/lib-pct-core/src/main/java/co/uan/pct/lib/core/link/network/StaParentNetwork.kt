@@ -59,7 +59,7 @@ object StaParentNetwork {
         return props.routes.firstOrNull { it.gateway != null }?.gateway
     }
 
-    /** Nuestra IPv4 en la subred del padre → cuerpo ANNOUNCE (`ipv4OnLink`). */
+    /** Nuestra IPv4 en la STA hacia el padre → cuerpo ANNOUNCE (`ipv4OnLink`). */
     fun hostIpv4ForAnnounce(
         connectivity: ConnectivityManager,
         staNetwork: Network,

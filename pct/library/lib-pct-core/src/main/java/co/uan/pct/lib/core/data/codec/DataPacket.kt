@@ -7,9 +7,11 @@ import kotlin.uuid.Uuid
 
 /**
  * Paquete de datos (:8766). Cabecera `PCTD` + `msg_type`; cuerpos:
- * - HELLO:      | uuid 16 |
- * - BCAST:      | msg_id 8 | origin_uuid 16 | ts_ms 8 | payload_len 2 | payload |
- * - BCAST_RECV: | msg_id 8 | origin_uuid 16 |
+ * - HELLO:         | uuid 16 |
+ * - BCAST:         | msg_id 8 | origin_uuid 16 | ts_ms 8 | payload_len 2 | payload |
+ * - BCAST_RECV:    | msg_id 8 | origin_uuid 16 |
+ * - UNICAST:       | msg_id 8 | origin_uuid 16 | dest_uuid 16 | ts_ms 8 | payload_len 2 | payload |
+ * - UNICAST_RECV:  | msg_id 8 | origin_uuid 16 |
  */
 @OptIn(ExperimentalUuidApi::class)
 sealed class DataPacket {
@@ -47,6 +49,36 @@ sealed class DataPacket {
     data class BcastRecv(val msgId: Long, val originUuid: Uuid) : DataPacket() {
         override fun toWireBytes(): ByteArray =
             header(DataPacketKind.BCAST_RECV, 8 + UUID_BYTES).apply {
+                putLong(msgId)
+                put(originUuid.toByteArray())
+            }.array()
+    }
+
+    class Unicast(
+        val msgId: Long,
+        val originUuid: Uuid,
+        val destUuid: Uuid,
+        val tsMs: Long,
+        val payload: ByteArray,
+    ) : DataPacket() {
+        init {
+            require(payload.size <= MAX_PAYLOAD_BYTES) { "payload too large: ${payload.size}" }
+        }
+
+        override fun toWireBytes(): ByteArray =
+            header(DataPacketKind.UNICAST, 8 + UUID_BYTES + UUID_BYTES + 8 + 2 + payload.size).apply {
+                putLong(msgId)
+                put(originUuid.toByteArray())
+                put(destUuid.toByteArray())
+                putLong(tsMs)
+                putShort(payload.size.toShort())
+                put(payload)
+            }.array()
+    }
+
+    data class UnicastRecv(val msgId: Long, val originUuid: Uuid) : DataPacket() {
+        override fun toWireBytes(): ByteArray =
+            header(DataPacketKind.UNICAST_RECV, 8 + UUID_BYTES).apply {
                 putLong(msgId)
                 put(originUuid.toByteArray())
             }.array()
