@@ -2,10 +2,12 @@ package co.uan.pct.lib.core.radio.group
 
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.Manifest.permission.NEARBY_WIFI_DEVICES
+import android.net.wifi.p2p.WifiP2pConfig
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import co.uan.pct.lib.core.logging.PctLog
 import co.uan.pct.lib.core.radio.android.P2pChannel
+import java.security.SecureRandom
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -17,9 +19,17 @@ class GroupOwner(
     @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES])
     suspend fun start(): GoCredentials {
         log(Log.VERBOSE, "go: start requested")
+        // `DIRECT-xy…-PCT` (32 máx). PSK 8: el instance-v1 (`p`+b64) no pasa de 63.
+        val ssid = "DIRECT-${randomToken(16)}-PCT"
+        val psk = randomToken(8)
+        val config = WifiP2pConfig.Builder()
+            .setNetworkName(ssid)
+            .setPassphrase(psk)
+            .setGroupOperatingBand(WifiP2pConfig.GROUP_OWNER_BAND_2GHZ)
+            .build()
         p2p.runP2pAction {
             adapterCall(label = "createGroup") { manager, wifiChannel, listener ->
-                manager.createGroup(wifiChannel, listener)
+                manager.createGroup(wifiChannel, config, listener)
             }
         }
         return readOwnGoCredentials()
@@ -60,7 +70,7 @@ class GroupOwner(
                             "ssidLen=${ssid.length} pskLen=${passphrase.length}",
                     )
                 } else {
-                    log(Log.VERBOSE, "go: credentials ok ssid=$ssid attempt=${attempt + 1}")
+                    PctLog.event("go: credentials ok ssid=$ssid freq=${group.frequency}MHz attempt=${attempt + 1}")
                     return GoCredentials(ssid, passphrase)
                 }
             }
@@ -77,6 +87,13 @@ class GroupOwner(
         private const val LOG_TAG = "GroupOwner"
         const val GROUP_INFO_ATTEMPTS = 8
         const val GROUP_INFO_DELAY_MS = 500L
+        private val TOKEN_ALPHABET = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+        private val random = SecureRandom()
+
+        /** Android exige `DIRECT-xy…` (dos alfanum) y PSK de 8..63. */
+        private fun randomToken(length: Int): String = buildString(length) {
+            repeat(length) { append(TOKEN_ALPHABET[random.nextInt(TOKEN_ALPHABET.size)]) }
+        }
 
         private fun emitLog(priority: Int, message: String) {
             if (Log.isLoggable(LOG_TAG, priority)) {

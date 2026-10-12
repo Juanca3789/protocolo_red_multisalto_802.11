@@ -10,8 +10,10 @@ import co.uan.pct.lib.core.link.network.StaParentNetwork
 import co.uan.pct.lib.core.link.table.NeighborEntry
 import co.uan.pct.lib.core.logging.PctLog
 import co.uan.pct.lib.core.radio.GoControlEndpoint
+import co.uan.pct.lib.core.types.ListenHealth
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
+import co.uan.pct.lib.core.types.UpstreamHealth
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -28,7 +30,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -54,6 +58,11 @@ class Data(
 ) {
     private val connectivity =
         context.applicationContext.getSystemService(ConnectivityManager::class.java)
+
+    private val _listenHealth = MutableStateFlow(ListenHealth.WAITING)
+    internal val listenHealth: StateFlow<ListenHealth> = _listenHealth.asStateFlow()
+    private val _upstreamHealth = MutableStateFlow(UpstreamHealth.NONE)
+    internal val upstreamHealth: StateFlow<UpstreamHealth> = _upstreamHealth.asStateFlow()
 
     private var incoming = Channel<Pair<NodeId, ByteArray>>(capacity = Channel.UNLIMITED)
     private var sendQueue = Channel<Outgoing>(capacity = Channel.UNLIMITED)
@@ -86,6 +95,7 @@ class Data(
                     if (role == Role.ISLAND || endpoint == null) {
                         closeGoListen()
                         closeGoSessions()
+                        _listenHealth.value = ListenHealth.WAITING
                     } else if (endpoint != goListenBoundEndpoint) {
                         closeGoListen()
                         closeGoSessions()
@@ -103,8 +113,10 @@ class Data(
                 upstreamSession?.closeQuietly()
                 upstreamSession = null
                 if (!active || gate.role == Role.ISLAND || gate.staNetwork == null || !gate.hasNeighbors) {
+                    _upstreamHealth.value = UpstreamHealth.NONE
                     return@collect
                 }
+                _upstreamHealth.value = UpstreamHealth.CONNECTING
                 upstreamJob = launch { maintainUpstreamOverSta(gate.staNetwork, gate.parentBssid) }
             }
         }
@@ -127,6 +139,8 @@ class Data(
         upstreamSession = null
         closeGoSessions()
         closeGoListen()
+        _listenHealth.value = ListenHealth.WAITING
+        _upstreamHealth.value = UpstreamHealth.NONE
         incoming.close()
         sendQueue.close()
         incoming = Channel(capacity = Channel.UNLIMITED)
@@ -271,9 +285,14 @@ class Data(
 
     private fun openGoListen(endpoint: GoControlEndpoint) {
         val ipv4Ok = bindGoListen(InetAddress.getByName(endpoint.hostIpv4), endpoint.iface)
-        if (!ipv4Ok) return
+        if (!ipv4Ok) {
+            _listenHealth.value = ListenHealth.BIND_FAILED
+            return
+        }
         goListenBoundEndpoint = endpoint
-        endpoint.linkLocalIpv6?.let { fe80 -> bindGoListen(fe80, endpoint.iface) }
+        val fe80 = endpoint.linkLocalIpv6
+        val fe80Ok = fe80 != null && bindGoListen(fe80, endpoint.iface)
+        _listenHealth.value = if (fe80Ok) ListenHealth.READY else ListenHealth.IPV4_ONLY
     }
 
     private fun bindGoListen(address: InetAddress, iface: String): Boolean =
@@ -335,6 +354,7 @@ class Data(
             val fe80 = StaParentNetwork.fe80GatewayForControlTcp(connectivity, staNetwork, parentBssid)
             val target: InetAddress? = fe80 ?: StaParentNetwork.gatewayForControlTcp(connectivity, staNetwork)
             if (target == null) {
+                _upstreamHealth.value = UpstreamHealth.CONNECTING
                 delay(RETRY_DELAY)
                 continue
             }
@@ -345,6 +365,7 @@ class Data(
                 }
             }.getOrNull()
             if (connected == null) {
+                _upstreamHealth.value = UpstreamHealth.RETRYING
                 PctLog.event("data: upstream connect fallo dst=${target.hostAddress}")
                 delay(RETRY_DELAY)
                 continue
@@ -365,12 +386,14 @@ class Data(
             session.start()
             val hello = runCatching { session.runUpstreamHello() }
             if (hello.isFailure) {
+                _upstreamHealth.value = UpstreamHealth.RETRYING
                 PctLog.event("data: upstream hello fallo ${hello.exceptionOrNull()?.message}")
                 session.closeQuietly()
                 upstreamSession = null
                 delay(RETRY_DELAY)
                 continue
             }
+            _upstreamHealth.value = UpstreamHealth.JOINED
             PctLog.event("data: upstream listo dst=${connected.remoteSocketAddress}")
             while (
                 active &&

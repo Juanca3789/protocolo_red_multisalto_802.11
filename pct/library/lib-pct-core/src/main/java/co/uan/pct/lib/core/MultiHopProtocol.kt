@@ -14,11 +14,21 @@ import co.uan.pct.lib.core.radio.GoControlEndpoint
 import co.uan.pct.lib.core.radio.Radio
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
+import co.uan.pct.lib.core.types.SessionStatus
+import co.uan.pct.lib.core.types.mergeListen
+import co.uan.pct.lib.core.types.mergeUpstream
+import co.uan.pct.lib.core.types.refine
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalUuidApi::class)
 class MultiHopProtocol(
@@ -29,6 +39,12 @@ class MultiHopProtocol(
 
     private val _state = MutableStateFlow(Role.ISLAND)
     val state: StateFlow<Role> = _state.asStateFlow()
+
+    private val _status = MutableStateFlow<SessionStatus>(SessionStatus.Stopped)
+    val status: StateFlow<SessionStatus> = _status.asStateFlow()
+
+    private var mergeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var mergeJob: Job? = null
 
     private val _connectedMacs = MutableStateFlow<List<String>>(emptyList())
     val connectedMacs: StateFlow<List<String>> = _connectedMacs.asStateFlow()
@@ -110,10 +126,13 @@ class MultiHopProtocol(
             radio.start()
             link.start()
             data.start()
+            watchStatus()
             running = true
             log(Log.DEBUG, "start ok")
         } catch (t: Throwable) {
             log(Log.ERROR, "start failed: ${t.message}")
+            mergeJob?.cancel()
+            mergeJob = null
             if (::data.isInitialized) {
                 runCatching { data.stop() }
             }
@@ -136,6 +155,8 @@ class MultiHopProtocol(
         }
         try {
             log(Log.DEBUG, "stop")
+            mergeJob?.cancel()
+            mergeJob = null
             if (::data.isInitialized) {
                 data.stop()
             }
@@ -170,8 +191,34 @@ class MultiHopProtocol(
         data.send(destination, payload)
     }
 
+    private fun watchStatus() {
+        mergeJob?.cancel()
+        mergeJob = mergeScope.launch {
+            combine(
+                radio.bootStatus,
+                link.listenHealth,
+                link.upstreamHealth,
+                data.listenHealth,
+                data.upstreamHealth,
+            ) { boot, ll, lu, dl, du ->
+                boot.refine(mergeListen(ll, dl), mergeUpstream(lu, du))
+            }.collect { merged ->
+                if (_status.value != merged) {
+                    _status.value = merged
+                    if (merged is SessionStatus.Online) {
+                        PctLog.event(
+                            "status: Online role=${merged.role} listen=${merged.listen} " +
+                                "upstream=${merged.upstream}",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun resetSessionState() {
         _state.value = Role.ISLAND
+        _status.value = SessionStatus.Stopped
         _connectedMacs.value = emptyList()
         _parentMac.value = null
         _staNetwork.value = null

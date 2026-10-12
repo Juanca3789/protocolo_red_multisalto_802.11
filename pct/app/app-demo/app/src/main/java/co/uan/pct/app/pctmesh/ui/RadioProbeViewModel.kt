@@ -7,6 +7,7 @@ import co.uan.pct.app.pctmesh.PctMeshApplication
 import co.uan.pct.lib.core.MultiHopProtocol
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
+import co.uan.pct.lib.core.types.SessionStatus
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
@@ -29,6 +30,8 @@ data class NeighborRowUi(
 
 data class RadioProbeUiState(
     val role: Role = Role.ISLAND,
+    val status: SessionStatus = SessionStatus.Stopped,
+    val sawJoin: Boolean = false,
     val parentMac: String? = null,
     val childMacs: List<String> = emptyList(),
     val neighborRows: List<NeighborRowUi> = emptyList(),
@@ -46,22 +49,26 @@ class RadioProbeViewModel(
 ) : ViewModel() {
 
     private val displayNameCache = mutableMapOf<Uuid, String>()
+    private val sawJoin = MutableStateFlow(false)
     private val _broadcastMessages = MutableStateFlow<List<BroadcastMessageUi>>(emptyList())
     val broadcastMessages: StateFlow<List<BroadcastMessageUi>> = _broadcastMessages.asStateFlow()
     private val nextMessageId = AtomicLong(1)
     private var popJob: Job? = null
 
     val uiState: StateFlow<RadioProbeUiState> = combine(
-        protocol.state,
+        protocol.status,
+        sawJoin,
         protocol.parentMac,
         protocol.connectedMacs,
         protocol.neighborTable,
-    ) { role, parentMac, childMacs, neighborTable ->
+    ) { status, joined, parentMac, childMacs, neighborTable ->
         neighborTable.forEach { entry ->
             displayNameCache[entry.nodeId.identifier] = entry.nodeId.name
         }
         RadioProbeUiState(
-            role = role,
+            role = status.role,
+            status = status,
+            sawJoin = joined,
             parentMac = parentMac,
             childMacs = childMacs,
             neighborRows = neighborTable.map { entry ->
@@ -84,9 +91,17 @@ class RadioProbeViewModel(
         runCatching {
             displayNameCache[protocol.nodeId.identifier] = protocol.nodeId.name
         }
+        viewModelScope.launch {
+            protocol.status.collect { status ->
+                if (status is SessionStatus.Booting.JoiningParent) {
+                    sawJoin.value = true
+                }
+            }
+        }
     }
 
     fun start() {
+        sawJoin.value = false
         protocol.start()
         startPopLoop()
     }
@@ -95,6 +110,7 @@ class RadioProbeViewModel(
         popJob?.cancel()
         popJob = null
         protocol.stop()
+        sawJoin.value = false
         _broadcastMessages.value = emptyList()
         displayNameCache.clear()
         runCatching {

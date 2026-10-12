@@ -16,18 +16,23 @@ import co.uan.pct.lib.core.radio.android.P2pChannel
 import co.uan.pct.lib.core.radio.group.GoCredentials
 import co.uan.pct.lib.core.radio.group.GroupOwner
 import co.uan.pct.lib.core.radio.sta.StaAssociation
+import co.uan.pct.lib.core.types.BootStep
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
+import co.uan.pct.lib.core.types.SessionStatus
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.NetworkInterface
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,9 +76,14 @@ class Radio(
     val role: StateFlow<Role> = roleState.asStateFlow()
     val connectedMacs: StateFlow<List<String>> = connectedMacsState.asStateFlow()
 
+    private val _bootStatus = MutableStateFlow<SessionStatus>(SessionStatus.Stopped)
+    internal val bootStatus: StateFlow<SessionStatus> = _bootStatus.asStateFlow()
+
     private var goCredentials: GoCredentials? = null
     private var lastChildCount = 0
     private var lastPendingReason: String? = null
+    private var topologyRole: Role = Role.ISLAND
+    private var parentSsid: String? = null
 
     @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES])
     fun start() {
@@ -83,6 +93,19 @@ class Radio(
         scope.launch {
             try {
                 runSession()
+            } catch (t: CancellationException) {
+                throw t
+            } catch (t: Throwable) {
+                if (_bootStatus.value !is SessionStatus.Failed) {
+                    emitBoot(
+                        SessionStatus.Failed(
+                            role = Role.ISLAND,
+                            step = BootStep.BROWSE,
+                            message = t.message ?: "session falló",
+                            retryable = true,
+                        ),
+                    )
+                }
             } finally {
                 active = false
                 tearDownSession()
@@ -108,13 +131,13 @@ class Radio(
 
     @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES])
     private suspend fun runSession() {
-        roleState.value = Role.ISLAND
+        topologyRole = Role.ISLAND
+        parentSsid = null
         connectedMacsState.value = emptyList()
         lastChildCount = 0
         goCredentials = null
         goEndpointState.value = null
-
-        dnsSd.browse(BROWSE_WINDOW)
+        browseWithProgress()
 
         val parent = StaAssociation.selectParent(
             observed = dnsSd.lastScan.value,
@@ -123,11 +146,17 @@ class Radio(
         )
 
         val upstreamStaOk = if (parent != null) {
+            val ssid = ControlAdvertisement.fromAndroidDnsSd(parent.service)?.groupSsid
+                ?.takeIf { it.isNotBlank() }
+                ?: parent.service.instanceName
+            emitBoot(SessionStatus.Booting.JoiningParent(ssid))
             runCatching { sta.connect(parent.service, parent.deviceAddress) }
                 .onSuccess {
-                    PctLog.event("sta: conectado mac=${parent.deviceAddress} ssid=${parent.service.instanceName}")
+                    parentSsid = ssid
+                    PctLog.event("sta: conectado mac=${parent.deviceAddress} ssid=$ssid")
                 }
                 .onFailure { t ->
+                    parentSsid = null
                     PctLog.event("sta: fallo mac=${parent.deviceAddress} ${t.message}")
                 }
                 .isSuccess
@@ -136,10 +165,30 @@ class Radio(
             false
         }
 
-        goCredentials = groupOwner.start()
-        roleState.value = if (upstreamStaOk) Role.BRIDGE else Role.ROOT
+        emitBoot(SessionStatus.Booting.CreatingGo)
+        goCredentials = try {
+            groupOwner.start()
+        } catch (t: CancellationException) {
+            throw t
+        } catch (t: Throwable) {
+            emitBoot(
+                SessionStatus.Failed(
+                    role = Role.ISLAND,
+                    step = BootStep.CREATE_GO,
+                    message = t.message ?: "go start falló",
+                    retryable = true,
+                ),
+            )
+            return
+        }
+        topologyRole = if (upstreamStaOk) Role.BRIDGE else Role.ROOT
+        emitBoot(SessionStatus.Booting.Publishing(topologyRole, parentSsid))
         publishAdvertisement(childCount = 0)
         PctLog.event("go: activo ssid=${goCredentials?.ssid.orEmpty()}")
+        emitBoot(SessionStatus.Booting.WaitingGoAddress(topologyRole, parentSsid))
+        if (goEndpointState.value != null) {
+            emitBoot(SessionStatus.Booting.OpeningListeners(topologyRole, parentSsid))
+        }
 
         monitorGoClients()
     }
@@ -159,11 +208,17 @@ class Radio(
         runCatching { dnsSd.unpublish() }
         runCatching { groupOwner.stop() }
         sta.disconnect()
-        roleState.value = Role.ISLAND
         connectedMacsState.value = emptyList()
         goEndpointState.value = null
         goCredentials = null
         lastChildCount = 0
+        topologyRole = Role.ISLAND
+        parentSsid = null
+        if (_bootStatus.value !is SessionStatus.Failed) {
+            emitBoot(SessionStatus.Stopped)
+        } else {
+            roleState.value = Role.ISLAND
+        }
         PctLog.event("session: fin")
     }
 
@@ -215,6 +270,12 @@ class Radio(
                     "go: endpoint iface=$iface ipv4=${endpoint.hostIpv4} " +
                         "fe80=${endpoint.linkLocalIpv6?.hostAddress} network=${endpoint.network}",
                 )
+                val cur = _bootStatus.value
+                if (cur is SessionStatus.Booting.WaitingGoAddress ||
+                    cur is SessionStatus.Booting.Publishing
+                ) {
+                    emitBoot(SessionStatus.Booting.OpeningListeners(topologyRole, parentSsid))
+                }
             }
         }
     }
@@ -256,6 +317,46 @@ class Radio(
             if (lp.interfaceName == iface) return candidate
         }
         return null
+    }
+
+    @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, NEARBY_WIFI_DEVICES])
+    private suspend fun browseWithProgress() {
+        val windowSec = BROWSE_WINDOW.inWholeSeconds.toInt()
+        coroutineScope {
+            val browse = async { dnsSd.browse(BROWSE_WINDOW) }
+            val ticker = launch {
+                var elapsed = 0
+                var lastLoggedCandidates = -1
+                while (isActive && elapsed <= windowSec) {
+                    val candidates = dnsSd.lastScan.value.size
+                    emitBoot(
+                        SessionStatus.Booting.Browsing(elapsed, windowSec, candidates),
+                        log = elapsed == 0 || candidates != lastLoggedCandidates,
+                    )
+                    lastLoggedCandidates = candidates
+                    delay(1.seconds)
+                    elapsed++
+                }
+            }
+            browse.await()
+            ticker.cancel()
+            emitBoot(
+                SessionStatus.Booting.Browsing(
+                    elapsedSec = windowSec,
+                    windowSec = windowSec,
+                    candidates = dnsSd.lastScan.value.size,
+                ),
+                log = false,
+            )
+        }
+    }
+
+    private fun emitBoot(status: SessionStatus, log: Boolean = true) {
+        _bootStatus.value = status
+        roleState.value = status.role
+        if (log) {
+            PctLog.event("status: ${status::class.simpleName} role=${status.role}")
+        }
     }
 
     /** Una línea por motivo, no una por tick. */

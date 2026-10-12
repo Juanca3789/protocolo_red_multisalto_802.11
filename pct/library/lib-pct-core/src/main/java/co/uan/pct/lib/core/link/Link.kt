@@ -10,8 +10,10 @@ import co.uan.pct.lib.core.link.table.NeighborTable
 import co.uan.pct.lib.core.link.tcp.ControlTcpSession
 import co.uan.pct.lib.core.logging.PctLog
 import co.uan.pct.lib.core.radio.GoControlEndpoint
+import co.uan.pct.lib.core.types.ListenHealth
 import co.uan.pct.lib.core.types.NodeId
 import co.uan.pct.lib.core.types.Role
+import co.uan.pct.lib.core.types.UpstreamHealth
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -26,7 +28,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -50,6 +54,11 @@ class Link(
     private val neighborTable = NeighborTable()
 
     val neighbors: StateFlow<List<NeighborEntry>> = neighborTable.entries
+
+    private val _listenHealth = MutableStateFlow(ListenHealth.WAITING)
+    internal val listenHealth: StateFlow<ListenHealth> = _listenHealth.asStateFlow()
+    private val _upstreamHealth = MutableStateFlow(UpstreamHealth.NONE)
+    internal val upstreamHealth: StateFlow<UpstreamHealth> = _upstreamHealth.asStateFlow()
 
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var goEndpointWatchJob: Job? = null
@@ -76,6 +85,7 @@ class Link(
                     if (role == Role.ISLAND || endpoint == null) {
                         closeGoControlListen()
                         closeAllGoSessions()
+                        _listenHealth.value = ListenHealth.WAITING
                     } else if (endpoint != goListenBoundEndpoint) {
                         closeGoControlListen()
                         openGoControlListen(endpoint)
@@ -90,7 +100,11 @@ class Link(
                 staUpstreamJob = null
                 upstreamSession?.closeQuietly()
                 upstreamSession = null
-                if (!active || role == Role.ISLAND || staNetwork == null) return@collect
+                if (!active || role == Role.ISLAND || staNetwork == null) {
+                    _upstreamHealth.value = UpstreamHealth.NONE
+                    return@collect
+                }
+                _upstreamHealth.value = UpstreamHealth.CONNECTING
                 staUpstreamJob = launch { maintainUpstreamOverSta(staNetwork, bssid) }
             }
         }
@@ -110,6 +124,8 @@ class Link(
         upstreamSession = null
         closeAllGoSessions()
         closeGoControlListen()
+        _listenHealth.value = ListenHealth.WAITING
+        _upstreamHealth.value = UpstreamHealth.NONE
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         neighborTable.clear()
@@ -123,9 +139,14 @@ class Link(
      */
     private fun openGoControlListen(endpoint: GoControlEndpoint) {
         val ipv4Ok = bindGoListen(InetAddress.getByName(endpoint.hostIpv4), endpoint.iface)
-        if (!ipv4Ok) return
+        if (!ipv4Ok) {
+            _listenHealth.value = ListenHealth.BIND_FAILED
+            return
+        }
         goListenBoundEndpoint = endpoint
-        endpoint.linkLocalIpv6?.let { fe80 -> bindGoListen(fe80, endpoint.iface) }
+        val fe80 = endpoint.linkLocalIpv6
+        val fe80Ok = fe80 != null && bindGoListen(fe80, endpoint.iface)
+        _listenHealth.value = if (fe80Ok) ListenHealth.READY else ListenHealth.IPV4_ONLY
     }
 
     private fun bindGoListen(address: InetAddress, iface: String): Boolean =
@@ -198,6 +219,7 @@ class Link(
             val target: InetAddress? = fe80 ?: StaParentNetwork.gatewayForControlTcp(connectivity, staNetwork)
             val localIp = StaParentNetwork.hostIpv4ForAnnounce(connectivity, staNetwork)
             if (target == null || localIp == null) {
+                _upstreamHealth.value = UpstreamHealth.CONNECTING
                 delay(RETRY_DELAY)
                 continue
             }
@@ -212,6 +234,7 @@ class Link(
                 }
             }.getOrNull()
             if (connected == null) {
+                _upstreamHealth.value = UpstreamHealth.RETRYING
                 PctLog.event("link: upstream connect fallo dst=${target.hostAddress}")
                 delay(RETRY_DELAY)
                 continue
@@ -231,12 +254,14 @@ class Link(
             runCatching {
                 session.runUpstreamJoin(localIp)
             }.onFailure { t ->
+                _upstreamHealth.value = UpstreamHealth.RETRYING
                 PctLog.event("link: upstream session fallo ${t.message}")
                 session.closeQuietly()
                 upstreamSession = null
                 delay(RETRY_DELAY)
                 continue
             }
+            _upstreamHealth.value = UpstreamHealth.JOINED
             while (
                 active &&
                 scope.isActive &&
